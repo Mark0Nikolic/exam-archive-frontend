@@ -1,7 +1,9 @@
 
+import Text from './components/Text.jsx'
+
 function App() {
 
-  return (<h1>Welcome to Vite!</h1>)
+  return (<Text>Welcome to Vite!</Text>)
 }
 
 export default App
