@@ -1,16 +1,27 @@
-# React + Vite
+# Exam Archive Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React and TypeScript CMS for browsing, uploading, and moderating university exam papers.
 
-Currently, two official plugins are available:
+## Setup
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+cp .env.example .env
+npm install
+npm run dev
+```
 
-## React Compiler
+Development uses the bundled mock data by default, so no backend is required. The sign-in page lists demo Admin, Moderator, and User accounts; each account uses the password `demo123`. Uploads, approvals, rejections, and sign-in state are kept in memory and reset when the page is refreshed.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Set `VITE_USE_MOCK_DATA=false` to use the real API. The backend URL defaults to `https://localhost:7294`. Authentication uses its HttpOnly session cookie, so the API must allow the Vite origin and be served over HTTPS.
 
-## Expanding the ESLint configuration
+To explicitly enable mock mode in another build, set:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+VITE_USE_MOCK_DATA=true
+```
+
+## Commands
+
+- `npm run dev` starts the local Vite server.
+- `npm run build` type-checks and creates a production build.
+- `npm run lint` checks the source with Oxlint.
