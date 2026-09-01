@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Plus } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { PaperDetailsModal } from '../components/papers/PaperDetailsModal'
 import { UploadPaperModal } from '../components/papers/UploadPaperModal'
@@ -120,7 +121,8 @@ export function PapersPage() {
           <p className="mt-1 text-sm text-slate-500">Browse approved exams and upload new material.</p>
         </div>
         <Button onClick={() => setUploadOpen(true)}>
-          <span className="text-lg leading-none">+</span> Upload paper
+          <Plus className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
+          Upload paper
         </Button>
       </div>
 

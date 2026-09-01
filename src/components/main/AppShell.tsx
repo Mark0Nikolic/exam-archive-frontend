@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Menu, PanelLeftOpen } from "lucide-react";
 import { Outlet } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { useMockData } from "../../lib/config";
@@ -34,39 +35,23 @@ export function AppShell() {
             className="rounded-lg border border-slate-200 p-2 text-slate-600 transition-colors hover:bg-slate-50 lg:hidden"
             onClick={() => setMobileOpen(true)}
           >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              className="h-5 w-5"
-              aria-hidden="true"
-            >
-              <path d="M4 7h16M4 12h16M4 17h16" />
-            </svg>
+            <Menu className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
           </button>
           <button
             type="button"
             aria-label="Expand sidebar"
             aria-expanded={false}
             className={cn(
-              "hidden rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-950",
+              "hidden bg-white p-2 text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-950",
               collapsed && "lg:block",
             )}
             onClick={() => setCollapsed(false)}
           >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
+            <PanelLeftOpen
               className="h-5 w-5"
+              strokeWidth={1.8}
               aria-hidden="true"
-            >
-              <path d="M4 7h16M4 12h16M4 17h16" />
-            </svg>
+            />
           </button>
           {useMockData && (
             <span

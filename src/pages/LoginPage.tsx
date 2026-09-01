@@ -16,7 +16,7 @@ export function LoginPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [generalError, setGeneralError] = useState('')
 
-  if (user) return <Navigate to="/papers" replace />
+  if (user) return <Navigate to="/home" replace />
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -31,7 +31,7 @@ export function LoginPage() {
 
     try {
       await login({ username: username.trim(), password })
-      const destination = (location.state as { from?: string } | null)?.from ?? '/papers'
+      const destination = (location.state as { from?: string } | null)?.from ?? '/home'
       navigate(destination, { replace: true })
     } catch (error) {
       if (error instanceof ApiError) {

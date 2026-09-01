@@ -1,4 +1,5 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { LoaderCircle, X } from 'lucide-react'
 import type {
   ButtonHTMLAttributes,
   InputHTMLAttributes,
@@ -9,6 +10,8 @@ import type {
 } from 'react'
 import { cn } from '../../lib/utils'
 import type { PaperStatus } from '../../lib/types'
+
+export { FileDropZone } from './FileDropZone'
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost'
 
@@ -93,23 +96,54 @@ export function Modal({
   onClose: () => void
   width?: string
 }) {
+  const [rendered, setRendered] = useState(open)
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    let animationFrame: number | undefined
+    let unmountTimer: number | undefined
+
+    if (open) {
+      setRendered(true)
+      animationFrame = window.requestAnimationFrame(() => setVisible(true))
+    } else {
+      setVisible(false)
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      unmountTimer = window.setTimeout(() => setRendered(false), prefersReducedMotion ? 0 : 200)
+    }
+
+    return () => {
+      if (animationFrame !== undefined) window.cancelAnimationFrame(animationFrame)
+      if (unmountTimer !== undefined) window.clearTimeout(unmountTimer)
+    }
+  }, [open])
+
   useEffect(() => {
     if (!open) return
     const onKeyDown = (event: KeyboardEvent) => event.key === 'Escape' && onClose()
     document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [onClose, open])
+
+  useEffect(() => {
+    if (!rendered) return
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => {
-      document.removeEventListener('keydown', onKeyDown)
       document.body.style.overflow = previousOverflow
     }
-  }, [onClose, open])
+  }, [rendered])
 
-  if (!open) return null
+  if (!rendered) return null
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/45 p-0 backdrop-blur-sm sm:items-center sm:p-6"
+      className={cn(
+        'fixed inset-0 z-50 flex items-end justify-center p-0 transition-[background-color,backdrop-filter] duration-200 ease-out motion-reduce:transition-none sm:items-center sm:p-6',
+        visible
+          ? 'bg-slate-950/30 backdrop-blur-[2px]'
+          : 'pointer-events-none bg-slate-950/0 backdrop-blur-none',
+      )}
       onMouseDown={(event) => event.target === event.currentTarget && onClose()}
     >
       <section
@@ -117,7 +151,10 @@ export function Modal({
         role="dialog"
         aria-labelledby="modal-title"
         className={cn(
-          'max-h-[94vh] w-full overflow-y-auto rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl',
+          'max-h-[94vh] w-full overflow-y-auto rounded-t-2xl bg-white shadow-2xl transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none sm:rounded-2xl',
+          visible
+            ? 'translate-y-0 scale-100 opacity-100'
+            : 'translate-y-4 scale-100 opacity-0 sm:translate-y-0 sm:scale-[0.98]',
           width,
         )}
       >
@@ -131,10 +168,10 @@ export function Modal({
           <button
             type="button"
             aria-label="Close"
-            className="rounded-lg p-2 text-xl leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
             onClick={onClose}
           >
-            ×
+            <X className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
           </button>
         </div>
         {children}
@@ -254,7 +291,7 @@ export function StatusBadge({ status }: { status: PaperStatus }) {
 export function LoadingState({ label = 'Loading…' }: { label?: string }) {
   return (
     <div className="flex min-h-56 flex-col items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white">
-      <span className="h-7 w-7 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
+      <LoaderCircle className="h-7 w-7 animate-spin text-indigo-600" strokeWidth={1.8} aria-hidden="true" />
       <p className="text-sm font-medium text-slate-500">{label}</p>
     </div>
   )

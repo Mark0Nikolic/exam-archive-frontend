@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ArrowDown, ArrowUp, X } from 'lucide-react'
 import { ApiError } from '../../lib/axios'
 import { EXAM_TYPES } from '../../lib/types'
 import type { ExamType } from '../../lib/types'
 import { fieldError, formatBytes, monthNames } from '../../lib/utils'
 import { getMajors, getStudies, getSubjects } from '../../services/lookups'
 import { paperKeys, uploadPaper } from '../../services/papers'
-import { Button, Field, Input, Modal, Select } from '../ui'
+import { Button, Field, FileDropZone, Input, Modal, Select } from '../ui'
 
 interface FormState {
   studyId: string
@@ -291,20 +292,25 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
               />
             </Field>
             <div className="sm:col-span-2">
-              <Field
-                label="Paper files"
-                error={errors.files}
-                hint="Up to 10 files; PDF or images; 20 MB each and 100 MB total."
-                required
-              >
-                <Input
-                  type="file"
+              <p className="text-sm font-medium text-slate-700">
+                Paper files<span className="ml-1 text-rose-600">*</span>
+              </p>
+              <div className="mt-1.5">
+                <FileDropZone
                   multiple
                   accept=".pdf,.jpg,.jpeg,.png,.webp"
-                  className="file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-1 file:text-sm file:font-semibold file:text-indigo-700"
-                  onChange={(event) => update('files', Array.from(event.target.files ?? []))}
+                  disabled={mutation.isPending}
+                  label="Drag and drop PDF or image files here"
+                  onFiles={(files) => update('files', files)}
                 />
-              </Field>
+              </div>
+              {errors.files ? (
+                <span className="mt-1.5 block text-xs font-medium text-rose-600">{errors.files}</span>
+              ) : (
+                <span className="mt-1.5 block text-xs text-slate-500">
+                  Up to 10 files; PDF or images; 20 MB each and 100 MB total.
+                </span>
+              )}
               {form.files.length > 0 && (
                 <ol className="mt-3 divide-y divide-slate-100 rounded-xl border border-slate-200">
                   {form.files.map((file, index) => (
@@ -323,7 +329,7 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
                         className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
                         onClick={() => moveFile(index, -1)}
                       >
-                        ↑
+                        <ArrowUp className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
                       </button>
                       <button
                         type="button"
@@ -332,7 +338,7 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
                         className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
                         onClick={() => moveFile(index, 1)}
                       >
-                        ↓
+                        <ArrowDown className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
                       </button>
                       <button
                         type="button"
@@ -340,7 +346,7 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
                         className="rounded p-1 text-rose-600 hover:bg-rose-50"
                         onClick={() => update('files', form.files.filter((_, fileIndex) => fileIndex !== index))}
                       >
-                        ×
+                        <X className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
                       </button>
                     </li>
                   ))}

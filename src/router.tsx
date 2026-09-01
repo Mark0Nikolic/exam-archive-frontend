@@ -4,6 +4,7 @@ import { AppShell } from './components/main/AppShell'
 import { LoadingState } from './components/ui'
 import { useAuth } from './hooks/useAuth'
 import { isStaff } from './lib/utils'
+import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
 import { PapersPage } from './pages/PapersPage'
 import { PendingPapersPage } from './pages/PendingPapersPage'
@@ -27,7 +28,7 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 
 function StaffRoute({ children }: { children: ReactNode }) {
   const { user } = useAuth()
-  return isStaff(user?.role) ? children : <Navigate to="/papers" replace />
+  return isStaff(user?.role) ? children : <Navigate to="/home" replace />
 }
 
 export function AppRouter() {
@@ -41,7 +42,8 @@ export function AppRouter() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Navigate to="/papers" replace />} />
+        <Route index element={<Navigate to="/home" replace />} />
+        <Route path="/home" element={<HomePage />} />
         <Route path="/papers" element={<PapersPage />} />
         <Route
           path="/pending"
@@ -52,7 +54,7 @@ export function AppRouter() {
           }
         />
       </Route>
-      <Route path="*" element={<Navigate to="/papers" replace />} />
+      <Route path="*" element={<Navigate to="/home" replace />} />
     </Routes>
   )
 }
