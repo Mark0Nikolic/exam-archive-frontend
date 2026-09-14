@@ -1,4 +1,5 @@
 import axios, { AxiosError } from 'axios'
+import i18n from '../i18n'
 import type { ValidationErrors } from './types'
 
 interface ProblemDetails {
@@ -45,7 +46,7 @@ api.interceptors.response.use(
   (error: AxiosError<ProblemDetails>) => {
     if (!error.response) {
       return Promise.reject(
-        new ApiError(0, 'Connection failed', 'Could not reach the API. Check that the backend is running.'),
+        new ApiError(0, i18n.t('common.connectionFailedTitle'), i18n.t('common.connectionFailed')),
       )
     }
 
@@ -53,7 +54,7 @@ api.interceptors.response.use(
     return Promise.reject(
       new ApiError(
         error.response.status,
-        body?.title ?? 'Request failed',
+        body?.title ?? i18n.t('common.requestFailed'),
         body?.detail ?? error.message,
         body?.errors,
       ),

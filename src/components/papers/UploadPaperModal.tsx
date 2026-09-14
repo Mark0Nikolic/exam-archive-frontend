@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, X } from 'lucide-react'
+import type { TFunction } from 'i18next'
+import { useTranslation } from 'react-i18next'
+import { toAppLanguage } from '../../i18n'
 import { ApiError } from '../../lib/axios'
 import { EXAM_TYPES } from '../../lib/types'
 import type { ExamType } from '../../lib/types'
-import { fieldError, formatBytes, monthNames } from '../../lib/utils'
+import { compareLocalizedNames, fieldError, formatBytes, localizedName, monthNames } from '../../lib/utils'
 import { getMajors, getStudies, getSubjects } from '../../services/lookups'
 import { paperKeys, uploadPaper } from '../../services/papers'
 import { Button, Field, FileDropZone, Input, Modal, Select } from '../ui'
@@ -31,7 +34,7 @@ const initialState = (): FormState => ({
   files: [],
 })
 
-function validate(form: FormState) {
+function validate(form: FormState, t: TFunction) {
   const errors: Record<string, string> = {}
   const year = Number(form.year)
   const totalSize = form.files.reduce((sum, file) => sum + file.size, 0)
@@ -40,28 +43,31 @@ function validate(form: FormState) {
   ).length
   const allowed = /\.(pdf|jpe?g|png|webp)$/i
 
-  if (!form.studyId) errors.studyId = 'Choose a study program.'
-  if (!form.majorId) errors.majorId = 'Choose a major.'
-  if (!form.subjectId) errors.subjectId = 'Choose a subject.'
-  if (!form.month) errors.month = 'Choose the exam month.'
+  if (!form.studyId) errors.studyId = t('upload.validation.studyRequired')
+  if (!form.majorId) errors.majorId = t('upload.validation.majorRequired')
+  if (!form.subjectId) errors.subjectId = t('upload.validation.subjectRequired')
+  if (!form.month) errors.month = t('upload.validation.monthRequired')
   if (!Number.isInteger(year) || year < 1990 || year > new Date().getFullYear() + 1) {
-    errors.year = `Enter a year between 1990 and ${new Date().getFullYear() + 1}.`
+    errors.year = t('upload.validation.yearRange', { max: new Date().getFullYear() + 1 })
   }
-  if (form.files.length === 0) errors.files = 'Add at least one file.'
-  else if (form.files.length > 10) errors.files = 'A paper can contain at most 10 files.'
-  else if (pdfCount > 2) errors.files = 'A paper can contain at most 2 PDF files.'
+  if (form.files.length === 0) errors.files = t('upload.validation.filesRequired')
+  else if (form.files.length > 10) errors.files = t('upload.validation.tooManyFiles')
+  else if (pdfCount > 2) errors.files = t('upload.validation.tooManyPdfs')
   else if (form.files.some((file) => !allowed.test(file.name))) {
-    errors.files = 'Only PDF, JPG, JPEG, PNG, and WEBP files are supported.'
+    errors.files = t('upload.validation.unsupportedFile')
   } else if (form.files.some((file) => file.size > 20 * 1024 * 1024)) {
-    errors.files = 'Each file must be 20 MB or smaller.'
+    errors.files = t('upload.validation.fileTooLarge')
   } else if (totalSize > 100 * 1024 * 1024) {
-    errors.files = 'The combined upload must be 100 MB or smaller.'
+    errors.files = t('upload.validation.uploadTooLarge')
   }
 
   return errors
 }
 
 export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { t, i18n } = useTranslation()
+  const language = toAppLanguage(i18n.resolvedLanguage ?? i18n.language)
+  const months = monthNames(language)
   const queryClient = useQueryClient()
   const [form, setForm] = useState<FormState>(initialState)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -88,7 +94,7 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
 
   const visibleSubjects = (subjects.data?.data ?? [])
     .filter((subject) => !form.yearOfStudy || subject.yearOfStudy === Number(form.yearOfStudy))
-    .sort((a, b) => a.nameSr.localeCompare(b.nameSr, 'sr'))
+    .sort((a, b) => compareLocalizedNames(a, b, language))
 
   const mutation = useMutation({
     mutationFn: uploadPaper,
@@ -111,7 +117,7 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
     setGeneralError('')
-    const nextErrors = validate(form)
+    const nextErrors = validate(form, t)
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
 
@@ -137,7 +143,7 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
         })
         setGeneralError(error.message)
       } else {
-        setGeneralError('The paper could not be uploaded.')
+        setGeneralError(t('upload.failed'))
       }
     }
   }
@@ -155,11 +161,11 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
   return (
     <Modal
       open={open}
-      title={result ? 'Paper uploaded' : 'Upload a paper'}
+      title={result ? t('upload.uploadedTitle') : t('upload.title')}
       description={
         result
-          ? 'Your upload has been received.'
-          : 'Files are stored in the order shown below. Required fields are marked.'
+          ? t('upload.received')
+          : t('upload.description')
       }
       onClose={close}
       width="max-w-3xl"
@@ -168,31 +174,34 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
         <div className="space-y-5 p-6">
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
             <p className="font-bold text-emerald-800">
-              Paper #{result.id} is {result.status.toLowerCase()}.
+              {t('upload.result', {
+                id: result.id,
+                status: t(`common.statuses.${result.status}`).toLocaleLowerCase(language),
+              })}
             </p>
             <p className="mt-1 text-sm text-emerald-700">
               {result.status === 'Pending'
-                ? 'A moderator will review the submission.'
-                : 'The paper is now available in the archive.'}
+                ? t('upload.pendingReview')
+                : t('upload.available')}
             </p>
           </div>
           {result.claimToken && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-              <p className="text-sm font-bold text-amber-900">Save this claim token now</p>
+              <p className="text-sm font-bold text-amber-900">{t('upload.claimTitle')}</p>
               <code className="mt-2 block break-all rounded-lg bg-white px-3 py-2 text-sm text-amber-900 ring-1 ring-amber-200">
                 {result.claimToken}
               </code>
-              <p className="mt-2 text-xs text-amber-800">The API returns this token only once.</p>
+              <p className="mt-2 text-xs text-amber-800">{t('upload.claimDescription')}</p>
             </div>
           )}
           <div className="flex justify-end">
-            <Button onClick={close}>Done</Button>
+            <Button onClick={close}>{t('common.done')}</Button>
           </div>
         </div>
       ) : (
         <form onSubmit={submit}>
           <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-6">
-            <Field label="Study program" error={errors.studyId} required>
+            <Field label={t('papers.studyProgram')} error={errors.studyId} required>
               <Select
                 value={form.studyId}
                 disabled={studies.isPending}
@@ -206,15 +215,15 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
                   }))
                 }}
               >
-                <option value="">Select a program</option>
+                <option value="">{t('upload.selectProgram')}</option>
                 {studies.data?.data.map((study) => (
                   <option key={study.id} value={study.id}>
-                    {study.nameEn || study.nameSr}
+                    {localizedName(study, language)}
                   </option>
                 ))}
               </Select>
             </Field>
-            <Field label="Major" error={errors.majorId} required>
+            <Field label={t('papers.major')} error={errors.majorId} required>
               <Select
                 value={form.majorId}
                 disabled={!form.studyId || majors.isPending}
@@ -223,15 +232,15 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
                   setForm((current) => ({ ...current, yearOfStudy: '', subjectId: '' }))
                 }}
               >
-                <option value="">Select a major</option>
+                <option value="">{t('upload.selectMajor')}</option>
                 {majors.data?.data.map((major) => (
                   <option key={major.id} value={major.id}>
-                    {major.nameEn || major.nameSr}
+                    {localizedName(major, language)}
                   </option>
                 ))}
               </Select>
             </Field>
-            <Field label="Year of study">
+            <Field label={t('papers.yearOfStudy')}>
               <Select
                 value={form.yearOfStudy}
                 disabled={!form.majorId}
@@ -240,49 +249,49 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
                   update('subjectId', '')
                 }}
               >
-                <option value="">All years</option>
+                <option value="">{t('papers.allYears')}</option>
                 {[1, 2, 3, 4, 5, 6].map((year) => (
                   <option key={year} value={year}>
-                    Year {year}
+                    {t('common.yearNumber', { year })}
                   </option>
                 ))}
               </Select>
             </Field>
-            <Field label="Subject" error={errors.subjectId} required>
+            <Field label={t('papers.subject')} error={errors.subjectId} required>
               <Select
                 value={form.subjectId}
                 disabled={!form.majorId || subjects.isPending}
                 onChange={(event) => update('subjectId', event.target.value)}
               >
-                <option value="">Select a subject</option>
+                <option value="">{t('upload.selectSubject')}</option>
                 {visibleSubjects.map((subject) => (
                   <option key={subject.id} value={subject.id}>
-                    {subject.code} — {subject.nameEn || subject.nameSr}
+                    {subject.code} — {localizedName(subject, language)}
                   </option>
                 ))}
               </Select>
             </Field>
-            <Field label="Exam type" error={errors.examType} required>
+            <Field label={t('papers.examType')} error={errors.examType} required>
               <Select
                 value={form.examType}
                 onChange={(event) => update('examType', event.target.value as ExamType)}
               >
                 {EXAM_TYPES.map((type) => (
-                  <option key={type}>{type}</option>
+                  <option key={type} value={type}>{t(`common.examTypes.${type}`)}</option>
                 ))}
               </Select>
             </Field>
-            <Field label="Exam month" error={errors.month} required>
+            <Field label={t('papers.month')} error={errors.month} required>
               <Select value={form.month} onChange={(event) => update('month', event.target.value)}>
-                <option value="">Select a month</option>
-                {monthNames.map((month, index) => (
+                <option value="">{t('upload.selectMonth')}</option>
+                {months.map((month, index) => (
                   <option key={month} value={index + 1}>
                     {month}
                   </option>
                 ))}
               </Select>
             </Field>
-            <Field label="Exam year" error={errors.year} required>
+            <Field label={t('papers.examYear')} error={errors.year} required>
               <Input
                 type="number"
                 min={1990}
@@ -293,14 +302,14 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
             </Field>
             <div className="sm:col-span-2">
               <p className="text-sm font-medium text-slate-700">
-                Paper files<span className="ml-1 text-rose-600">*</span>
+                {t('upload.paperFiles')}<span className="ml-1 text-rose-600">*</span>
               </p>
               <div className="mt-1.5">
                 <FileDropZone
                   multiple
                   accept=".pdf,.jpg,.jpeg,.png,.webp"
                   disabled={mutation.isPending}
-                  label="Drag and drop PDF or image files here"
+                  label={t('upload.dropLabel')}
                   onFiles={(files) => update('files', files)}
                 />
               </div>
@@ -308,7 +317,7 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
                 <span className="mt-1.5 block text-xs font-medium text-rose-600">{errors.files}</span>
               ) : (
                 <span className="mt-1.5 block text-xs text-slate-500">
-                  Up to 10 files; PDF or images; 20 MB each and 100 MB total.
+                  {t('upload.fileHint')}
                 </span>
               )}
               {form.files.length > 0 && (
@@ -320,11 +329,11 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-medium text-slate-700">{file.name}</span>
-                        <span className="text-xs text-slate-400">{formatBytes(file.size)}</span>
+                        <span className="text-xs text-slate-400">{formatBytes(file.size, language)}</span>
                       </span>
                       <button
                         type="button"
-                        aria-label={`Move ${file.name} up`}
+                        aria-label={t('upload.moveUp', { name: file.name })}
                         disabled={index === 0}
                         className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
                         onClick={() => moveFile(index, -1)}
@@ -333,7 +342,7 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
                       </button>
                       <button
                         type="button"
-                        aria-label={`Move ${file.name} down`}
+                        aria-label={t('upload.moveDown', { name: file.name })}
                         disabled={index === form.files.length - 1}
                         className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
                         onClick={() => moveFile(index, 1)}
@@ -342,7 +351,7 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
                       </button>
                       <button
                         type="button"
-                        aria-label={`Remove ${file.name}`}
+                        aria-label={t('upload.removeFile', { name: file.name })}
                         className="rounded p-1 text-rose-600 hover:bg-rose-50"
                         onClick={() => update('files', form.files.filter((_, fileIndex) => fileIndex !== index))}
                       >
@@ -359,10 +368,10 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
           </div>
           <div className="flex justify-end gap-3 border-t border-slate-200 px-5 py-4 sm:px-6">
             <Button variant="secondary" onClick={close}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? 'Uploading…' : 'Upload paper'}
+              {mutation.isPending ? t('upload.uploading') : t('upload.submit')}
             </Button>
           </div>
         </form>

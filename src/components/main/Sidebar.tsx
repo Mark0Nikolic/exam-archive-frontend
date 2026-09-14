@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { FileText, Home, PanelLeftClose, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
-import { cn, roleLabel } from "../../lib/utils";
+import { cn, roleName } from "../../lib/utils";
 import { Button } from "../ui";
 
 interface SidebarProps {
@@ -15,20 +16,20 @@ interface SidebarProps {
 
 interface NavItem {
   to: string;
-  label: string;
+  labelKey: string;
   icon: LucideIcon;
 }
 
 const homeItem = {
   to: "/home",
-  label: "Home",
+  labelKey: "shell.home",
   icon: Home,
 } satisfies NavItem;
 
 const libraryItems = [
   {
     to: "/papers",
-    label: "Papers",
+    labelKey: "shell.papers",
     icon: FileText,
   },
 ] satisfies NavItem[];
@@ -42,12 +43,13 @@ function SidebarNavLink({
   collapsed: boolean;
   onMobileClose: () => void;
 }) {
+  const { t } = useTranslation();
   const ItemIcon = item.icon;
 
   return (
     <NavLink
       to={item.to}
-      title={collapsed ? item.label : undefined}
+      title={collapsed ? t(item.labelKey) : undefined}
       onClick={onMobileClose}
       className={({ isActive }) =>
         cn(
@@ -72,7 +74,7 @@ function SidebarNavLink({
           collapsed && "lg:max-w-0 lg:opacity-0",
         )}
       >
-        {item.label}
+        {t(item.labelKey)}
       </span>
     </NavLink>
   );
@@ -84,6 +86,7 @@ export function Sidebar({
   onCollapse,
   onMobileClose,
 }: SidebarProps) {
+  const { t } = useTranslation();
   const { user, logout, isLoggingOut } = useAuth();
   const [profileOpen, setProfileOpen] = useState(false);
 
@@ -93,7 +96,7 @@ export function Sidebar({
     <>
       <button
         type="button"
-        aria-label="Close navigation overlay"
+        aria-label={t("shell.closeNavigationOverlay")}
         tabIndex={mobileOpen ? 0 : -1}
         className={cn(
           "fixed inset-0 z-40 bg-slate-950/35 transition-opacity duration-300 lg:hidden",
@@ -133,13 +136,13 @@ export function Sidebar({
                     : "ml-0 max-w-40 opacity-100",
                 )}
               >
-                Exam Archive
+                {t("common.brand")}
               </span>
             </div>
 
             <button
               type="button"
-              aria-label="Close navigation"
+              aria-label={t("shell.closeNavigation")}
               className="ml-auto rounded-md p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 lg:hidden"
               onClick={onMobileClose}
             >
@@ -148,7 +151,7 @@ export function Sidebar({
 
             <button
               type="button"
-              aria-label="Collapse sidebar"
+              aria-label={t("shell.collapseSidebar")}
               className="ml-auto hidden rounded-md p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 lg:block"
               onClick={onCollapse}
             >
@@ -162,7 +165,7 @@ export function Sidebar({
 
           <nav
             className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4"
-            aria-label="Main navigation"
+            aria-label={t("shell.mainNavigation")}
           >
             <SidebarNavLink
               item={homeItem}
@@ -177,7 +180,7 @@ export function Sidebar({
                 collapsed && "lg:mb-0 lg:max-h-0 lg:opacity-0",
               )}
             >
-              Library
+              {t("shell.library")}
             </p>
             <div className="space-y-1">
               {libraryItems.map((item) => (
@@ -203,7 +206,7 @@ export function Sidebar({
                 <div className="border-b border-slate-100 px-2 py-2">
                   <p className="truncate text-sm font-bold">{user.username}</p>
                   <p className="text-xs text-slate-500">
-                    {roleLabel(user.role)}
+                    {t(`common.roles.${roleName(user.role)}`)}
                   </p>
                 </div>
                 <Button
@@ -212,7 +215,7 @@ export function Sidebar({
                   disabled={isLoggingOut}
                   onClick={() => logout()}
                 >
-                  {isLoggingOut ? "Signing out…" : "Sign out"}
+                  {isLoggingOut ? t("shell.signingOut") : t("shell.signOut")}
                 </Button>
               </div>
             )}
@@ -220,7 +223,7 @@ export function Sidebar({
             <button
               type="button"
               aria-expanded={profileOpen}
-              aria-label="Open profile menu"
+              aria-label={t("shell.openProfileMenu")}
               title={collapsed ? user.username : undefined}
               className={cn(
                 "flex min-h-12 w-full items-center gap-3 rounded-lg px-2 text-left transition-colors duration-200 hover:bg-slate-100",
@@ -241,7 +244,7 @@ export function Sidebar({
                   {user.username}
                 </span>
                 <span className="block truncate text-xs text-slate-500">
-                  {roleLabel(user.role)}
+                  {t(`common.roles.${roleName(user.role)}`)}
                 </span>
               </span>
             </button>

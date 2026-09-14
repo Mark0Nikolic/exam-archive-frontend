@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import type { ChangeEvent, DragEvent } from 'react'
 import { Upload } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../lib/utils'
 
 interface FileDropZoneProps {
@@ -15,9 +16,10 @@ export function FileDropZone({
   accept,
   multiple = false,
   disabled = false,
-  label = 'Drag and drop files here',
+  label,
   onFiles,
 }: FileDropZoneProps) {
+  const { t } = useTranslation()
   const inputRef = useRef<HTMLInputElement>(null)
   const dragDepth = useRef(0)
   const [isDragging, setIsDragging] = useState(false)
@@ -92,16 +94,16 @@ export function FileDropZone({
         aria-hidden="true"
       />
       <p className="mt-3 text-sm font-semibold text-slate-700" aria-live="polite">
-        {isDragging ? 'Drop files to add them' : label}
+        {isDragging ? t('fileDrop.dropNow') : (label ?? t('fileDrop.defaultLabel'))}
       </p>
-      <p className="mt-1 text-xs text-slate-500">or</p>
+      <p className="mt-1 text-xs text-slate-500">{t('fileDrop.or')}</p>
       <button
         type="button"
         disabled={disabled}
         className="mt-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-indigo-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed"
         onClick={() => inputRef.current?.click()}
       >
-        Browse files
+        {t('fileDrop.browse')}
       </button>
     </div>
   )

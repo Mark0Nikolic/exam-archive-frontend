@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 import { PaperDetailsModal } from '../components/papers/PaperDetailsModal'
 import { UploadPaperModal } from '../components/papers/UploadPaperModal'
@@ -8,15 +9,25 @@ import { Button, DataTable, EmptyState, ErrorState, Field, Input, LoadingState, 
 import type { Column } from '../components/ui'
 import { FilterPanel } from '../components/ui/FilterPanel'
 import { ApiError } from '../lib/axios'
+import { toAppLanguage } from '../i18n'
 import { EXAM_TYPES } from '../lib/types'
 import type { ExamType, Paper, PaperQuery } from '../lib/types'
-import { formatDate, monthNames } from '../lib/utils'
+import {
+  compareLocalizedNames,
+  formatDate,
+  localizedName,
+  localizedPaperSubject,
+  monthNames,
+} from '../lib/utils'
 import { getMajors, getStudies, getSubjects } from '../services/lookups'
 import { getPapers, paperKeys } from '../services/papers'
 
 const toNumber = (value: string | null) => (value ? Number(value) : undefined)
 
 export function PapersPage() {
+  const { t, i18n } = useTranslation()
+  const language = toAppLanguage(i18n.resolvedLanguage ?? i18n.language)
+  const months = monthNames(language)
   const [searchParams, setSearchParams] = useSearchParams()
   const [uploadOpen, setUploadOpen] = useState(false)
   const [selectedPaperId, setSelectedPaperId] = useState<number | null>(null)
@@ -63,7 +74,7 @@ export function PapersPage() {
 
   const visibleSubjects = (subjects.data?.data ?? [])
     .filter((subject) => !filters.yearOfStudy || subject.yearOfStudy === filters.yearOfStudy)
-    .sort((a, b) => a.nameSr.localeCompare(b.nameSr, 'sr'))
+    .sort((a, b) => compareLocalizedNames(a, b, language))
 
   const setFilter = (key: string, value?: string | number) => {
     setSearchParams((current) => {
@@ -78,22 +89,17 @@ export function PapersPage() {
   const columns: Column<Paper>[] = [
     {
       key: 'subject',
-      header: 'Subject',
-      render: (paper) => (
-        <div>
-          <p className="font-semibold text-slate-900">{paper.subjectNameEn}</p>
-          <p className="mt-0.5 text-xs text-slate-400">{paper.subjectNameSr}</p>
-        </div>
-      ),
+      header: t('papers.subject'),
+      render: (paper) => <p className="font-semibold text-slate-900">{localizedPaperSubject(paper, language)}</p>,
     },
-    { key: 'type', header: 'Exam type', render: (paper) => paper.examType },
+    { key: 'type', header: t('papers.examType'), render: (paper) => t(`common.examTypes.${paper.examType}`) },
     {
       key: 'date',
-      header: 'Exam date',
-      render: (paper) => `${monthNames[paper.month - 1]} ${paper.year}`,
+      header: t('papers.examDate'),
+      render: (paper) => `${months[paper.month - 1]} ${paper.year}`,
     },
-    { key: 'pages', header: 'Pages', render: (paper) => paper.pageCount },
-    { key: 'uploaded', header: 'Uploaded', render: (paper) => formatDate(paper.uploadedAt) },
+    { key: 'pages', header: t('papers.pages'), render: (paper) => paper.pageCount },
+    { key: 'uploaded', header: t('papers.uploaded'), render: (paper) => formatDate(paper.uploadedAt, language) },
     {
       key: 'view',
       header: '',
@@ -107,7 +113,7 @@ export function PapersPage() {
             setSelectedPaperId(paper.id)
           }}
         >
-          Details
+          {t('papers.details')}
         </Button>
       ),
     },
@@ -117,17 +123,17 @@ export function PapersPage() {
     <div className="w-full space-y-5">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-950">Papers</h1>
-          <p className="mt-1 text-sm text-slate-500">Browse approved exams and upload new material.</p>
+          <h1 className="text-2xl font-black tracking-tight text-slate-950">{t('papers.title')}</h1>
+          <p className="mt-1 text-sm text-slate-500">{t('papers.description')}</p>
         </div>
         <Button onClick={() => setUploadOpen(true)}>
           <Plus className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
-          Upload paper
+          {t('papers.uploadPaper')}
         </Button>
       </div>
 
       <FilterPanel onClear={() => setSearchParams({})}>
-        <Field label="Study program">
+        <Field label={t('papers.studyProgram')}>
           <Select
             value={filters.studiesId ?? ''}
             onChange={(event) => {
@@ -139,15 +145,15 @@ export function PapersPage() {
               })
             }}
           >
-            <option value="">All programs</option>
+            <option value="">{t('papers.allPrograms')}</option>
             {studies.data?.data.map((study) => (
               <option key={study.id} value={study.id}>
-                {study.nameEn || study.nameSr}
+                {localizedName(study, language)}
               </option>
             ))}
           </Select>
         </Field>
-        <Field label="Major">
+        <Field label={t('papers.major')}>
           <Select
             value={filters.majorId ?? ''}
             disabled={!filters.studiesId}
@@ -160,15 +166,15 @@ export function PapersPage() {
               })
             }}
           >
-            <option value="">All majors</option>
+            <option value="">{t('papers.allMajors')}</option>
             {majors.data?.data.map((major) => (
               <option key={major.id} value={major.id}>
-                {major.nameEn || major.nameSr}
+                {localizedName(major, language)}
               </option>
             ))}
           </Select>
         </Field>
-        <Field label="Year of study">
+        <Field label={t('papers.yearOfStudy')}>
           <Select
             value={filters.yearOfStudy ?? ''}
             disabled={!filters.majorId}
@@ -183,67 +189,67 @@ export function PapersPage() {
               })
             }}
           >
-            <option value="">All years</option>
+            <option value="">{t('papers.allYears')}</option>
             {[1, 2, 3, 4, 5, 6].map((year) => (
               <option key={year} value={year}>
-                Year {year}
+                {t('common.yearNumber', { year })}
               </option>
             ))}
           </Select>
         </Field>
-        <Field label="Subject">
+        <Field label={t('papers.subject')}>
           <Select
             value={filters.subjectId ?? ''}
             disabled={!filters.majorId}
             onChange={(event) => setFilter('subjectId', event.target.value)}
           >
-            <option value="">All subjects</option>
+            <option value="">{t('papers.allSubjects')}</option>
             {visibleSubjects.map((subject) => (
               <option key={subject.id} value={subject.id}>
-                {subject.code} — {subject.nameEn || subject.nameSr}
+                {subject.code} — {localizedName(subject, language)}
               </option>
             ))}
           </Select>
         </Field>
-        <Field label="Exam type">
+        <Field label={t('papers.examType')}>
           <Select value={filters.examType ?? ''} onChange={(event) => setFilter('examType', event.target.value)}>
-            <option value="">All types</option>
+            <option value="">{t('papers.allTypes')}</option>
             {EXAM_TYPES.map((type) => (
-              <option key={type}>{type}</option>
+              <option key={type} value={type}>{t(`common.examTypes.${type}`)}</option>
             ))}
           </Select>
         </Field>
-        <Field label="Month">
+        <Field label={t('papers.month')}>
           <Select value={filters.month ?? ''} onChange={(event) => setFilter('month', event.target.value)}>
-            <option value="">All months</option>
-            {monthNames.map((month, index) => (
+            <option value="">{t('papers.allMonths')}</option>
+            {months.map((month, index) => (
               <option key={month} value={index + 1}>
                 {month}
               </option>
             ))}
           </Select>
         </Field>
-        <Field label="Exam year">
+        <Field label={t('papers.examYear')}>
           <Input
             type="number"
             min={1990}
             max={new Date().getFullYear() + 1}
             value={filters.year ?? ''}
-            placeholder="All years"
+            placeholder={t('papers.allYears')}
             onChange={(event) => setFilter('year', event.target.value)}
           />
         </Field>
       </FilterPanel>
 
       {papers.isPending ? (
-        <LoadingState label="Loading papers…" />
+        <LoadingState label={t('papers.loading')} />
       ) : papers.isError ? (
         <ErrorState
-          message={papers.error instanceof ApiError ? papers.error.message : 'Unable to load papers.'}
+          message={papers.error instanceof ApiError ? papers.error.message : t('papers.loadError')}
           onRetry={() => papers.refetch()}
         />
       ) : papers.data.data.length === 0 ? (
-        <EmptyState title="No papers found" description="Try changing or clearing the active filters." />
+        <EmptyState title={t('papers.emptyTitle')} description={t('papers.emptyDescription')} />
       ) : (
         <>
           <DataTable

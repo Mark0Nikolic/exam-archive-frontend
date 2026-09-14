@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 import { PaperDetailsModal } from '../components/papers/PaperDetailsModal'
 import {
@@ -17,10 +18,11 @@ import {
 } from '../components/ui'
 import type { Column } from '../components/ui'
 import { FilterPanel } from '../components/ui/FilterPanel'
+import { toAppLanguage } from '../i18n'
 import { ApiError } from '../lib/axios'
 import { EXAM_TYPES } from '../lib/types'
 import type { ExamType, Paper, PaperQuery } from '../lib/types'
-import { fieldError, formatDate, monthNames } from '../lib/utils'
+import { fieldError, formatDate, localizedPaperSubject, monthNames } from '../lib/utils'
 import { approvePaper, getPapers, paperKeys, rejectPaper } from '../services/papers'
 
 function RejectModal({
@@ -30,6 +32,8 @@ function RejectModal({
   paper: Paper | null
   onClose: () => void
 }) {
+  const { t, i18n } = useTranslation()
+  const language = toAppLanguage(i18n.resolvedLanguage ?? i18n.language)
   const queryClient = useQueryClient()
   const [reason, setReason] = useState('')
   const [error, setError] = useState('')
@@ -47,7 +51,7 @@ function RejectModal({
     event.preventDefault()
     const trimmed = reason.trim()
     if (trimmed.length < 3 || trimmed.length > 500) {
-      setError('The reason must contain between 3 and 500 characters.')
+      setError(t('pending.reasonValidation'))
       return
     }
     if (!paper) return
@@ -57,7 +61,7 @@ function RejectModal({
       setError(
         caught instanceof ApiError
           ? fieldError(caught.errors, 'Reason') ?? caught.message
-          : 'The paper could not be rejected.',
+          : t('pending.rejectError'),
       )
     }
   }
@@ -65,17 +69,24 @@ function RejectModal({
   return (
     <Modal
       open={paper !== null}
-      title="Reject paper"
-      description={paper ? `Explain why “${paper.subjectNameEn}” cannot be approved.` : undefined}
+      title={t('pending.rejectTitle')}
+      description={
+        paper ? t('pending.rejectDescription', { subject: localizedPaperSubject(paper, language) }) : undefined
+      }
       onClose={onClose}
     >
       <form onSubmit={submit}>
         <div className="p-5 sm:p-6">
-          <Field label="Reason" error={error} hint={`${reason.trim().length}/500 characters`} required>
+          <Field
+            label={t('pending.reason')}
+            error={error}
+            hint={t('common.characters', { count: reason.trim().length })}
+            required
+          >
             <Textarea
               value={reason}
               maxLength={500}
-              placeholder="Describe what should be corrected…"
+              placeholder={t('pending.reasonPlaceholder')}
               onChange={(event) => {
                 setReason(event.target.value)
                 setError('')
@@ -85,10 +96,10 @@ function RejectModal({
         </div>
         <div className="flex justify-end gap-3 border-t border-slate-200 px-5 py-4 sm:px-6">
           <Button variant="secondary" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button type="submit" variant="danger" disabled={mutation.isPending}>
-            {mutation.isPending ? 'Rejecting…' : 'Reject paper'}
+            {mutation.isPending ? t('pending.rejecting') : t('pending.rejectPaper')}
           </Button>
         </div>
       </form>
@@ -99,6 +110,9 @@ function RejectModal({
 const numberParam = (value: string | null) => (value ? Number(value) : undefined)
 
 export function PendingPapersPage() {
+  const { t, i18n } = useTranslation()
+  const language = toAppLanguage(i18n.resolvedLanguage ?? i18n.language)
+  const months = monthNames(language)
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
   const [selectedPaperId, setSelectedPaperId] = useState<number | null>(null)
@@ -121,7 +135,7 @@ export function PendingPapersPage() {
     mutationFn: approvePaper,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: paperKeys.all }),
     onError: (error) =>
-      setActionError(error instanceof ApiError ? error.message : 'The paper could not be approved.'),
+      setActionError(error instanceof ApiError ? error.message : t('pending.approveError')),
   })
 
   const setFilter = (key: string, value?: string | number) => {
@@ -137,26 +151,21 @@ export function PendingPapersPage() {
   const columns: Column<Paper>[] = [
     {
       key: 'subject',
-      header: 'Subject',
-      render: (paper) => (
-        <div>
-          <p className="font-semibold text-slate-900">{paper.subjectNameEn}</p>
-          <p className="text-xs text-slate-400">{paper.subjectNameSr}</p>
-        </div>
-      ),
+      header: t('papers.subject'),
+      render: (paper) => <p className="font-semibold text-slate-900">{localizedPaperSubject(paper, language)}</p>,
     },
-    { key: 'type', header: 'Exam', render: (paper) => paper.examType },
+    { key: 'type', header: t('pending.exam'), render: (paper) => t(`common.examTypes.${paper.examType}`) },
     {
       key: 'date',
-      header: 'Exam date',
-      render: (paper) => `${monthNames[paper.month - 1]} ${paper.year}`,
+      header: t('papers.examDate'),
+      render: (paper) => `${months[paper.month - 1]} ${paper.year}`,
     },
-    { key: 'pages', header: 'Pages', render: (paper) => paper.pageCount },
-    { key: 'uploaded', header: 'Submitted', render: (paper) => formatDate(paper.uploadedAt) },
-    { key: 'status', header: 'Status', render: (paper) => <StatusBadge status={paper.status} /> },
+    { key: 'pages', header: t('papers.pages'), render: (paper) => paper.pageCount },
+    { key: 'uploaded', header: t('pending.submitted'), render: (paper) => formatDate(paper.uploadedAt, language) },
+    { key: 'status', header: t('pending.status'), render: (paper) => <StatusBadge status={paper.status} /> },
     {
       key: 'actions',
-      header: 'Actions',
+      header: t('pending.actions'),
       className: 'text-right',
       render: (paper) => (
         <div className="flex justify-end gap-2">
@@ -167,10 +176,10 @@ export function PendingPapersPage() {
             onClick={(event) => {
               event.stopPropagation()
               setActionError('')
-              if (window.confirm(`Approve paper #${paper.id}?`)) approve.mutate(paper.id)
+              if (window.confirm(t('pending.approveConfirm', { id: paper.id }))) approve.mutate(paper.id)
             }}
           >
-            Approve
+            {t('pending.approve')}
           </Button>
           <Button
             variant="ghost"
@@ -180,7 +189,7 @@ export function PendingPapersPage() {
               setPaperToReject(paper)
             }}
           >
-            Reject
+            {t('pending.reject')}
           </Button>
         </div>
       ),
@@ -190,32 +199,32 @@ export function PendingPapersPage() {
   return (
     <div className="mx-auto max-w-[1500px] space-y-5">
       <div>
-        <h1 className="text-2xl font-black tracking-tight text-slate-950">Pending papers</h1>
-        <p className="mt-1 text-sm text-slate-500">Review user submissions in oldest-first order.</p>
+        <h1 className="text-2xl font-black tracking-tight text-slate-950">{t('pending.title')}</h1>
+        <p className="mt-1 text-sm text-slate-500">{t('pending.description')}</p>
       </div>
 
       <FilterPanel onClear={() => setSearchParams({})}>
-        <Field label="Exam type">
+        <Field label={t('papers.examType')}>
           <Select value={filters.examType ?? ''} onChange={(event) => setFilter('examType', event.target.value)}>
-            <option value="">All types</option>
+            <option value="">{t('papers.allTypes')}</option>
             {EXAM_TYPES.map((type) => (
-              <option key={type}>{type}</option>
+              <option key={type} value={type}>{t(`common.examTypes.${type}`)}</option>
             ))}
           </Select>
         </Field>
-        <Field label="Month">
+        <Field label={t('papers.month')}>
           <Select value={filters.month ?? ''} onChange={(event) => setFilter('month', event.target.value)}>
-            <option value="">All months</option>
-            {monthNames.map((month, index) => (
+            <option value="">{t('papers.allMonths')}</option>
+            {months.map((month, index) => (
               <option key={month} value={index + 1}>
                 {month}
               </option>
             ))}
           </Select>
         </Field>
-        <Field label="Year">
+        <Field label={t('pending.year')}>
           <Select value={filters.year ?? ''} onChange={(event) => setFilter('year', event.target.value)}>
-            <option value="">All years</option>
+            <option value="">{t('papers.allYears')}</option>
             {Array.from({ length: 15 }, (_, index) => new Date().getFullYear() + 1 - index).map((year) => (
               <option key={year}>{year}</option>
             ))}
@@ -230,14 +239,14 @@ export function PendingPapersPage() {
       )}
 
       {papers.isPending ? (
-        <LoadingState label="Loading pending papers…" />
+        <LoadingState label={t('pending.loading')} />
       ) : papers.isError ? (
         <ErrorState
-          message={papers.error instanceof ApiError ? papers.error.message : 'Unable to load pending papers.'}
+          message={papers.error instanceof ApiError ? papers.error.message : t('pending.loadError')}
           onRetry={() => papers.refetch()}
         />
       ) : papers.data.data.length === 0 ? (
-        <EmptyState title="The queue is clear" description="There are no pending papers matching these filters." />
+        <EmptyState title={t('pending.emptyTitle')} description={t('pending.emptyDescription')} />
       ) : (
         <>
           <DataTable

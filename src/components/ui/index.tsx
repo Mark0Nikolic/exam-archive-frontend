@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { LoaderCircle, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type {
   ButtonHTMLAttributes,
   InputHTMLAttributes,
@@ -96,6 +97,7 @@ export function Modal({
   onClose: () => void
   width?: string
 }) {
+  const { t } = useTranslation()
   const [rendered, setRendered] = useState(open)
   const [visible, setVisible] = useState(false)
 
@@ -167,7 +169,7 @@ export function Modal({
           </div>
           <button
             type="button"
-            aria-label="Close"
+            aria-label={t('common.close')}
             className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
             onClick={onClose}
           >
@@ -252,23 +254,24 @@ export function Pagination({
   totalItems: number
   onChange: (page: number) => void
 }) {
+  const { t } = useTranslation()
   const safeTotalPages = Math.max(totalPages, 1)
   return (
     <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-200 pt-4 sm:flex-row">
-      <p className="text-sm text-slate-500">{totalItems} result{totalItems === 1 ? '' : 's'}</p>
+      <p className="text-sm text-slate-500">{t('common.results', { count: totalItems })}</p>
       <div className="flex items-center gap-2">
         <Button variant="secondary" disabled={page <= 1} onClick={() => onChange(page - 1)}>
-          Previous
+          {t('common.previous')}
         </Button>
         <span className="min-w-24 text-center text-sm font-medium text-slate-600">
-          Page {page} of {safeTotalPages}
+          {t('common.pageOf', { page, total: safeTotalPages })}
         </span>
         <Button
           variant="secondary"
           disabled={page >= safeTotalPages}
           onClick={() => onChange(page + 1)}
         >
-          Next
+          {t('common.next')}
         </Button>
       </div>
     </div>
@@ -276,6 +279,7 @@ export function Pagination({
 }
 
 export function StatusBadge({ status }: { status: PaperStatus }) {
+  const { t } = useTranslation()
   const classes: Record<PaperStatus, string> = {
     Approved: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
     Pending: 'bg-amber-50 text-amber-700 ring-amber-600/20',
@@ -283,28 +287,30 @@ export function StatusBadge({ status }: { status: PaperStatus }) {
   }
   return (
     <span className={cn('inline-flex rounded-full px-2.5 py-1 text-xs font-bold ring-1 ring-inset', classes[status])}>
-      {status}
+      {t(`common.statuses.${status}`)}
     </span>
   )
 }
 
-export function LoadingState({ label = 'Loading…' }: { label?: string }) {
+export function LoadingState({ label }: { label?: string }) {
+  const { t } = useTranslation()
   return (
     <div className="flex min-h-56 flex-col items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white">
       <LoaderCircle className="h-7 w-7 animate-spin text-indigo-600" strokeWidth={1.8} aria-hidden="true" />
-      <p className="text-sm font-medium text-slate-500">{label}</p>
+      <p className="text-sm font-medium text-slate-500">{label ?? t('common.loading')}</p>
     </div>
   )
 }
 
 export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  const { t } = useTranslation()
   return (
     <div className="rounded-xl border border-rose-200 bg-rose-50 p-6 text-center">
-      <p className="font-semibold text-rose-800">Something went wrong</p>
+      <p className="font-semibold text-rose-800">{t('common.somethingWentWrong')}</p>
       <p className="mt-1 text-sm text-rose-700">{message}</p>
       {onRetry && (
         <Button className="mt-4" variant="secondary" onClick={onRetry}>
-          Try again
+          {t('common.tryAgain')}
         </Button>
       )}
     </div>

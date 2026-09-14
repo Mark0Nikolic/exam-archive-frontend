@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { Menu, PanelLeftOpen } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Outlet } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { useMockData } from "../../lib/config";
 import { cn } from "../../lib/utils";
+import { LanguageSwitcher } from "../i18n/LanguageSwitcher";
 import { Sidebar } from "./Sidebar";
 
 export function AppShell() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -31,7 +34,7 @@ export function AppShell() {
         >
           <button
             type="button"
-            aria-label="Open navigation"
+            aria-label={t("shell.openNavigation")}
             className="rounded-lg border border-slate-200 p-2 text-slate-600 transition-colors hover:bg-slate-50 lg:hidden"
             onClick={() => setMobileOpen(true)}
           >
@@ -39,7 +42,7 @@ export function AppShell() {
           </button>
           <button
             type="button"
-            aria-label="Expand sidebar"
+            aria-label={t("shell.expandSidebar")}
             aria-expanded={false}
             className={cn(
               "hidden bg-white p-2 text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-950",
@@ -56,13 +59,14 @@ export function AppShell() {
           {useMockData && (
             <span
               className="ml-3 rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700 ring-1 ring-inset ring-indigo-200"
-              title="Mock changes are kept in memory and reset when the page refreshes."
+              title={t("shell.mockModeTitle")}
             >
-              Mock mode
+              {t("shell.mockMode")}
             </span>
           )}
-          <p className="ml-auto text-sm text-slate-500">
-            Signed in as{" "}
+          <LanguageSwitcher className="ml-auto" />
+          <p className="ml-3 hidden text-sm text-slate-500 sm:block">
+            {t("shell.signedInAs")}{" "}
             <span className="font-semibold text-slate-700">
               {user.username}
             </span>
