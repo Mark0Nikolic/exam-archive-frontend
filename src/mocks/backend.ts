@@ -1,4 +1,5 @@
 import { ApiError } from '../lib/axios'
+import { isStaff } from '../lib/utils'
 import type {
   CurrentUser,
   Major,
@@ -12,13 +13,14 @@ import type {
   UploadedPaper,
   UploadPaperInput,
 } from '../lib/types'
+import type { MockPaperDetail } from './data'
 import { mockMajors, mockPapers, mockStudies, mockSubjects, mockUsers } from './data'
 
 const delay = (milliseconds = 120) => new Promise((resolve) => window.setTimeout(resolve, milliseconds))
 const clone = <T>(value: T): T => structuredClone(value)
 
 let currentUser: CurrentUser | null = null
-let papers: PaperDetail[] = clone(mockPapers)
+let papers: MockPaperDetail[] = clone(mockPapers)
 
 function page<T>(items: T[], pageNumber: number, perPage: number): PaginatedResponse<T> {
   const safePage = Math.max(1, pageNumber)
@@ -42,8 +44,20 @@ function findPaper(id: number) {
   return paper
 }
 
-function withoutFiles({ files: _files, ...paper }: PaperDetail): Paper {
-  return paper
+function isPaperVisible(paper: MockPaperDetail) {
+  return (
+    paper.status === 'Approved' ||
+    paper.uploadedByUserId === currentUser?.id ||
+    isStaff(currentUser?.role)
+  )
+}
+
+function withoutFiles({ files: _files, uploadedByUserId, ...paper }: MockPaperDetail): Paper {
+  return { ...paper, isOwnedByCurrentUser: uploadedByUserId === currentUser?.id }
+}
+
+function publicPaperDetail({ uploadedByUserId, ...paper }: MockPaperDetail): PaperDetail {
+  return { ...paper, isOwnedByCurrentUser: uploadedByUserId === currentUser?.id }
 }
 
 function publicUser(user: (typeof mockUsers)[number]): CurrentUser {
@@ -108,6 +122,7 @@ export async function mockGetPapers(query: PaperQuery) {
       const major = subject ? mockMajors.find((item) => item.id === subject.majorId) : undefined
 
       return (
+        isPaperVisible(paper) &&
         (!query.status || paper.status === query.status) &&
         (!query.subjectId || paper.subjectId === query.subjectId) &&
         (!query.majorId || subject?.majorId === query.majorId) &&
@@ -119,7 +134,10 @@ export async function mockGetPapers(query: PaperQuery) {
       )
     })
     .sort((left, right) => {
-      if (query.status === 'Pending') {
+      const statusDifference = ['Pending', 'Rejected', 'Approved'].indexOf(left.status) -
+        ['Pending', 'Rejected', 'Approved'].indexOf(right.status)
+      if (statusDifference !== 0) return statusDifference
+      if (left.status === 'Pending') {
         return new Date(left.uploadedAt).getTime() - new Date(right.uploadedAt).getTime()
       }
       return (
@@ -135,7 +153,11 @@ export async function mockGetPapers(query: PaperQuery) {
 
 export async function mockGetPaper(id: number) {
   await delay()
-  return clone(findPaper(id))
+  const paper = findPaper(id)
+  if (!isPaperVisible(paper)) {
+    throw new ApiError(403, 'Paper unavailable', 'You do not have permission to view this paper.')
+  }
+  return clone(publicPaperDetail(paper))
 }
 
 function fileContentType(file: File) {
@@ -156,6 +178,9 @@ function fileGroup(contentType: string): keyof PaperDetail['files'] {
 
 export async function mockUploadPaper(input: UploadPaperInput) {
   await delay(250)
+  if (!currentUser) {
+    throw new ApiError(401, 'Not signed in', 'Sign in before uploading a paper.')
+  }
   const subject = mockSubjects.find((item) => item.id === input.subjectId)
   if (!subject) {
     throw new ApiError(400, 'Invalid paper', 'Choose a valid subject.', {
@@ -176,7 +201,7 @@ export async function mockUploadPaper(input: UploadPaperInput) {
 
   const id = Math.max(0, ...papers.map((paper) => paper.id)) + 1
   const uploadedAt = new Date().toISOString()
-  const paper: PaperDetail = {
+  const paper: MockPaperDetail = {
     id,
     subjectId: subject.id,
     subjectNameSr: subject.nameSr,
@@ -189,6 +214,7 @@ export async function mockUploadPaper(input: UploadPaperInput) {
     status: 'Pending',
     reviewedAt: null,
     rejectionReason: null,
+    uploadedByUserId: currentUser.id,
     files: groupedFiles,
   }
   papers = [paper, ...papers]
@@ -213,7 +239,7 @@ export async function mockApprovePaper(id: number) {
   paper.status = 'Approved'
   paper.reviewedAt = new Date().toISOString()
   paper.rejectionReason = null
-  return clone(paper)
+  return clone(publicPaperDetail(paper))
 }
 
 export async function mockRejectPaper(input: { id: number; reason: string }) {
@@ -222,5 +248,5 @@ export async function mockRejectPaper(input: { id: number; reason: string }) {
   paper.status = 'Rejected'
   paper.reviewedAt = new Date().toISOString()
   paper.rejectionReason = input.reason
-  return clone(paper)
+  return clone(publicPaperDetail(paper))
 }

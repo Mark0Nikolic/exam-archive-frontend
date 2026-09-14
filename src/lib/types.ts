@@ -49,7 +49,7 @@ export interface Subject {
 export const EXAM_TYPES = ['Midterm', 'Final', 'Resit'] as const
 export type ExamType = (typeof EXAM_TYPES)[number]
 
-export const PAPER_STATUSES = ['Pending', 'Approved', 'Rejected'] as const
+export const PAPER_STATUSES = ['Pending', 'Rejected', 'Approved'] as const
 export type PaperStatus = (typeof PAPER_STATUSES)[number]
 
 export interface Paper {
@@ -65,6 +65,7 @@ export interface Paper {
   status: PaperStatus
   reviewedAt: string | null
   rejectionReason: string | null
+  isOwnedByCurrentUser?: boolean
 }
 
 export interface PaperFile {

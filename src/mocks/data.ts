@@ -9,6 +9,10 @@ export interface MockSubject extends Subject {
   majorId: number
 }
 
+export interface MockPaperDetail extends PaperDetail {
+  uploadedByUserId: number
+}
+
 export const mockUsers: MockUser[] = [
   { id: 1, username: 'admin', password: 'demo123', role: USER_ROLES.Admin },
   { id: 2, username: 'moderator', password: 'demo123', role: USER_ROLES.Moderator },
@@ -59,6 +63,7 @@ type PaperSeed = {
   uploadedDaysAgo: number
   rejectionReason?: string
   images?: boolean
+  uploadedByUserId?: number
 }
 
 const paperSeeds: PaperSeed[] = [
@@ -88,7 +93,7 @@ const paperSeeds: PaperSeed[] = [
   { subjectId: 403, examType: 'Resit', month: 9, yearOffset: -1, pageCount: 9, status: 'Approved', uploadedDaysAgo: 300 },
 ]
 
-export const mockPapers: PaperDetail[] = paperSeeds.map((seed, index) => {
+export const mockPapers: MockPaperDetail[] = paperSeeds.map((seed, index) => {
   const subject = mockSubjects.find((item) => item.id === seed.subjectId)
   if (!subject) throw new Error(`Missing mock subject ${seed.subjectId}`)
 
@@ -124,6 +129,7 @@ export const mockPapers: PaperDetail[] = paperSeeds.map((seed, index) => {
     status: seed.status,
     reviewedAt,
     rejectionReason: seed.rejectionReason ?? null,
+    uploadedByUserId: seed.uploadedByUserId ?? (index % mockUsers.length) + 1,
     files,
   }
 })

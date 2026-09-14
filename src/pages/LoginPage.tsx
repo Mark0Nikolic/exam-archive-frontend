@@ -58,17 +58,13 @@ export function LoginPage() {
           <span className="font-bold">{t('common.brand')}</span>
         </div>
         <div className="my-auto max-w-xl">
-          <p className="text-sm font-bold uppercase tracking-[0.2em] text-indigo-300">
-            {t('auth.academicResources')}
-          </p>
-          <h1 className="mt-5 text-5xl font-black leading-tight tracking-tight">
+          <h1 className="text-5xl font-black leading-tight tracking-tight">
             {t('auth.heroTitle')}
           </h1>
           <p className="mt-6 max-w-lg text-lg leading-8 text-slate-300">
             {t('auth.heroDescription')}
           </p>
         </div>
-        <p className="text-sm text-slate-500">{t('auth.universityManagement')}</p>
       </section>
 
       <section className="flex items-center justify-center p-6 pt-20 sm:p-10 sm:pt-24 lg:pt-10">
@@ -79,7 +75,6 @@ export function LoginPage() {
           </div>
           <p className="text-sm font-bold text-indigo-600">{t('auth.welcomeBack')}</p>
           <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950">{t('auth.signInTitle')}</h2>
-          <p className="mt-2 text-sm text-slate-500">{t('auth.signInDescription')}</p>
 
           {useMockData && (
             <div className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50 p-4">

@@ -5,16 +5,29 @@ import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 import { PaperDetailsModal } from '../components/papers/PaperDetailsModal'
 import { UploadPaperModal } from '../components/papers/UploadPaperModal'
-import { Button, DataTable, EmptyState, ErrorState, Field, Input, LoadingState, Pagination, Select } from '../components/ui'
+import {
+  Button,
+  DataTable,
+  EmptyState,
+  ErrorState,
+  Field,
+  Input,
+  LoadingState,
+  Pagination,
+  Select,
+  StatusBadge,
+} from '../components/ui'
 import type { Column } from '../components/ui'
 import { FilterPanel } from '../components/ui/FilterPanel'
+import { useAuth } from '../hooks/useAuth'
 import { ApiError } from '../lib/axios'
 import { toAppLanguage } from '../i18n'
-import { EXAM_TYPES } from '../lib/types'
-import type { ExamType, Paper, PaperQuery } from '../lib/types'
+import { EXAM_TYPES, PAPER_STATUSES } from '../lib/types'
+import type { ExamType, Paper, PaperQuery, PaperStatus } from '../lib/types'
 import {
   compareLocalizedNames,
   formatDate,
+  isStaff,
   localizedName,
   localizedPaperSubject,
   monthNames,
@@ -26,6 +39,8 @@ const toNumber = (value: string | null) => (value ? Number(value) : undefined)
 
 export function PapersPage() {
   const { t, i18n } = useTranslation()
+  const { user } = useAuth()
+  const staffUser = isStaff(user?.role)
   const language = toAppLanguage(i18n.resolvedLanguage ?? i18n.language)
   const months = monthNames(language)
   const [searchParams, setSearchParams] = useSearchParams()
@@ -38,6 +53,7 @@ export function PapersPage() {
     yearOfStudy: toNumber(searchParams.get('yearOfStudy')),
     subjectId: toNumber(searchParams.get('subjectId')),
     examType: (searchParams.get('examType') as ExamType | null) ?? undefined,
+    status: (searchParams.get('status') as PaperStatus | null) ?? undefined,
     month: toNumber(searchParams.get('month')),
     year: toNumber(searchParams.get('year')),
     page: toNumber(searchParams.get('page')) ?? 1,
@@ -45,7 +61,6 @@ export function PapersPage() {
 
   const query: PaperQuery = {
     ...filters,
-    status: 'Approved',
     perPage: 10,
   }
 
@@ -76,6 +91,10 @@ export function PapersPage() {
     .filter((subject) => !filters.yearOfStudy || subject.yearOfStudy === filters.yearOfStudy)
     .sort((a, b) => compareLocalizedNames(a, b, language))
 
+  const visiblePapers = (papers.data?.data ?? [])
+    .filter((paper) => staffUser || paper.status === 'Approved' || paper.isOwnedByCurrentUser)
+    .sort((left, right) => PAPER_STATUSES.indexOf(left.status) - PAPER_STATUSES.indexOf(right.status))
+
   const setFilter = (key: string, value?: string | number) => {
     setSearchParams((current) => {
       const next = new URLSearchParams(current)
@@ -99,6 +118,7 @@ export function PapersPage() {
       render: (paper) => `${months[paper.month - 1]} ${paper.year}`,
     },
     { key: 'pages', header: t('papers.pages'), render: (paper) => paper.pageCount },
+    { key: 'status', header: t('papers.status'), render: (paper) => <StatusBadge status={paper.status} /> },
     { key: 'uploaded', header: t('papers.uploaded'), render: (paper) => formatDate(paper.uploadedAt, language) },
     {
       key: 'view',
@@ -219,6 +239,14 @@ export function PapersPage() {
             ))}
           </Select>
         </Field>
+        <Field label={t('papers.status')}>
+          <Select value={filters.status ?? ''} onChange={(event) => setFilter('status', event.target.value)}>
+            <option value="">{t('papers.allStatuses')}</option>
+            {PAPER_STATUSES.map((status) => (
+              <option key={status} value={status}>{t(`common.statuses.${status}`)}</option>
+            ))}
+          </Select>
+        </Field>
         <Field label={t('papers.month')}>
           <Select value={filters.month ?? ''} onChange={(event) => setFilter('month', event.target.value)}>
             <option value="">{t('papers.allMonths')}</option>
@@ -248,13 +276,13 @@ export function PapersPage() {
           message={papers.error instanceof ApiError ? papers.error.message : t('papers.loadError')}
           onRetry={() => papers.refetch()}
         />
-      ) : papers.data.data.length === 0 ? (
+      ) : visiblePapers.length === 0 ? (
         <EmptyState title={t('papers.emptyTitle')} description={t('papers.emptyDescription')} />
       ) : (
         <>
           <DataTable
             columns={columns}
-            rows={papers.data.data}
+            rows={visiblePapers}
             getRowKey={(paper) => paper.id}
             onRowClick={(paper) => setSelectedPaperId(paper.id)}
           />
