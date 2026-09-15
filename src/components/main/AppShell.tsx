@@ -3,7 +3,6 @@ import { Menu, PanelLeftOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Outlet } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
-import { useMockData } from "../../lib/config";
 import { cn } from "../../lib/utils";
 import { LanguageSwitcher } from "../i18n/LanguageSwitcher";
 import { Sidebar } from "./Sidebar";
@@ -56,14 +55,6 @@ export function AppShell() {
               aria-hidden="true"
             />
           </button>
-          {useMockData && (
-            <span
-              className="ml-3 rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700 ring-1 ring-inset ring-indigo-200"
-              title={t("shell.mockModeTitle")}
-            >
-              {t("shell.mockMode")}
-            </span>
-          )}
           <LanguageSwitcher className="ml-auto" />
           <p className="ml-3 hidden text-sm text-slate-500 sm:block">
             {t("shell.signedInAs")}{" "}

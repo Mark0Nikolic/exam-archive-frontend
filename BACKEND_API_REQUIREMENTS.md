@@ -14,4 +14,4 @@ The real API must apply access control and sorting before pagination:
 - The response should set `isOwnedByCurrentUser` on each paper. This allows the frontend to apply a defensive visibility check, but it does not replace server-side authorization.
 - Filtering, ordering, `totalItems`, and `totalPages` must all be calculated before the requested page is returned.
 
-The frontend mock backend implements this contract. Until the deployed API implements it, ordinary users will defensively hide non-approved results that do not explicitly include `isOwnedByCurrentUser: true`.
+Ordinary users will defensively hide non-approved results that do not explicitly include `isOwnedByCurrentUser: true`.

@@ -10,15 +10,9 @@ npm install
 npm run dev
 ```
 
-Development uses the bundled mock data by default, so no backend is required. The sign-in page lists demo Admin, Moderator, and User accounts; each account uses the password `demo123`. Uploads, approvals, rejections, and sign-in state are kept in memory and reset when the page is refreshed.
+The app talks to the real backend. The API URL defaults to `https://localhost:7294`. Authentication uses its HttpOnly session cookie, so the API must allow the Vite origin and be served over HTTPS.
 
-Set `VITE_USE_MOCK_DATA=false` to use the real API. The backend URL defaults to `https://localhost:7294`. Authentication uses its HttpOnly session cookie, so the API must allow the Vite origin and be served over HTTPS.
-
-To explicitly enable mock mode in another build, set:
-
-```bash
-VITE_USE_MOCK_DATA=true
-```
+Local development accounts come from the backend seed data. In Development they use the password printed in the backend terminal on startup.
 
 ## Commands
 

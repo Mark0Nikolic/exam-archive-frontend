@@ -13,7 +13,6 @@ This document tracks the current progress and proposed direction of the project.
 - Upload papers with file validation
 - Paper metadata/details
 - Moderator approval and rejection workflow at `/pending`
-- Mock backend for local development and presentations
 
 ## Recommended Next Steps
 

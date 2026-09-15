@@ -5,9 +5,7 @@ import { LanguageSwitcher } from '../components/i18n/LanguageSwitcher'
 import { Button, Field, Input } from '../components/ui'
 import { useAuth } from '../hooks/useAuth'
 import { ApiError } from '../lib/axios'
-import { useMockData } from '../lib/config'
-import { fieldError, roleName } from '../lib/utils'
-import { mockUsers } from '../mocks/data'
+import { fieldError } from '../lib/utils'
 
 export function LoginPage() {
   const { t } = useTranslation()
@@ -75,31 +73,6 @@ export function LoginPage() {
           </div>
           <p className="text-sm font-bold text-indigo-600">{t('auth.welcomeBack')}</p>
           <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950">{t('auth.signInTitle')}</h2>
-
-          {useMockData && (
-            <div className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50 p-4">
-              <p className="text-sm font-bold text-indigo-950">{t('auth.mockActive')}</p>
-              <p className="mt-1 text-xs text-indigo-700">{t('auth.mockDescription')}</p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                {mockUsers.map((mockUser) => (
-                  <button
-                    key={mockUser.id}
-                    type="button"
-                    className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-left text-xs text-indigo-950 transition hover:border-indigo-400 hover:bg-indigo-100"
-                    onClick={() => {
-                      setUsername(mockUser.username)
-                      setPassword(mockUser.password)
-                      setErrors({})
-                      setGeneralError('')
-                    }}
-                  >
-                    <span className="block font-bold">{mockUser.username}</span>
-                    <span className="text-indigo-600">{t(`common.roles.${roleName(mockUser.role)}`)}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
           <form className="mt-8 space-y-5" onSubmit={submit} noValidate>
             <Field label={t('auth.username')} error={errors.username} required>
