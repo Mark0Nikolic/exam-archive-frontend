@@ -29,6 +29,7 @@ export interface Study {
   id: number
   nameSr: string
   nameEn: string
+  yearsOfStudy?: number
 }
 
 export interface Major {

@@ -7,7 +7,7 @@ import { toAppLanguage } from '../../i18n'
 import { ApiError } from '../../lib/axios'
 import { EXAM_TYPES } from '../../lib/types'
 import type { ExamType } from '../../lib/types'
-import { compareLocalizedNames, fieldError, formatBytes, localizedName, monthNames } from '../../lib/utils'
+import { compareLocalizedNames, fieldError, formatBytes, localizedName, monthNames, yearsOfStudyForStudy } from '../../lib/utils'
 import { getMajors, getStudies, getSubjects } from '../../services/lookups'
 import { paperKeys, uploadPaper } from '../../services/papers'
 import { Button, Field, FileDropZone, Input, Modal, Select } from '../ui'
@@ -96,6 +96,9 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
     .filter((subject) => !form.yearOfStudy || subject.yearOfStudy === Number(form.yearOfStudy))
     .sort((a, b) => compareLocalizedNames(a, b, language))
 
+  const selectedStudy = studies.data?.data.find((study) => String(study.id) === form.studyId)
+  const studyYears = yearsOfStudyForStudy(selectedStudy)
+
   const mutation = useMutation({
     mutationFn: uploadPaper,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: paperKeys.all }),
@@ -162,11 +165,7 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
     <Modal
       open={open}
       title={result ? t('upload.uploadedTitle') : t('upload.title')}
-      description={
-        result
-          ? t('upload.received')
-          : t('upload.description')
-      }
+      description={result ? t('upload.received') : undefined}
       onClose={close}
       width="max-w-3xl"
     >
@@ -250,9 +249,9 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
                 }}
               >
                 <option value="">{t('papers.allYears')}</option>
-                {[1, 2, 3, 4, 5, 6].map((year) => (
+                {studyYears.map((year) => (
                   <option key={year} value={year}>
-                    {t('common.yearNumber', { year })}
+                    {t(`common.yearOfStudy.${year}`)}
                   </option>
                 ))}
               </Select>

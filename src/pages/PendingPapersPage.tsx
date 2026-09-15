@@ -55,6 +55,7 @@ function RejectModal({
       return
     }
     if (!paper) return
+    if (!window.confirm(t('pending.rejectConfirm', { id: paper.id }))) return
     try {
       await mutation.mutateAsync({ id: paper.id, reason: trimmed })
     } catch (caught) {

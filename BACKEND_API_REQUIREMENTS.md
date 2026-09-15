@@ -26,3 +26,15 @@ Staff (Moderator, Admin, SuperAdmin) can approve or reject a pending paper from 
 - `reason` is optional. Empty, omitted, or `null` must be accepted and stored as no public rejection note.
 - If a reason is provided, keep the existing 3–500 character validation.
 - Regular users must not see these actions and must not be able to call the endpoints.
+
+## Years of study
+
+The frontend shows **3 years** for bachelor/undergraduate studies and **2 years** for master's studies.
+
+This should still be owned by the backend:
+
+- Prefer a `yearsOfStudy` number on each study program (`3` for bachelor, `2` for master).
+- Reject subjects and paper filters that use a year outside that range.
+- Do not accept `yearOfStudy` 4–6 for these programs.
+
+Until that field exists, the frontend infers master's programs from the study name (`Master` / `Magistar`) and otherwise shows 3 years.

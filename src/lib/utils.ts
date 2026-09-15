@@ -1,6 +1,6 @@
 import type { AppLanguage } from '../i18n'
-import { latinToCyrillic } from '../i18n/transliterate'
-import type { Paper, UserRole, ValidationErrors } from './types'
+import { toSerbianScript } from '../i18n/transliterate'
+import type { Paper, Study, UserRole, ValidationErrors } from './types'
 import { USER_ROLES } from './types'
 
 export function cn(...classes: Array<string | false | null | undefined>) {
@@ -52,13 +52,26 @@ export function monthNames(language: AppLanguage) {
     timeZone: 'UTC',
   })
 
-  return Array.from({ length: 12 }, (_, month) => formatter.format(new Date(Date.UTC(2024, month, 1))))
+  return Array.from({ length: 12 }, (_, month) => {
+    const name = formatter.format(new Date(Date.UTC(2024, month, 1)))
+    return name.charAt(0).toLocaleUpperCase(localeCode(language)) + name.slice(1)
+  })
+}
+
+export function yearsOfStudyForStudy(study?: Pick<Study, 'nameEn' | 'nameSr'> & { yearsOfStudy?: number }) {
+  if (study?.yearsOfStudy && study.yearsOfStudy > 0) {
+    return Array.from({ length: study.yearsOfStudy }, (_, index) => index + 1)
+  }
+
+  const haystack = `${study?.nameEn ?? ''} ${study?.nameSr ?? ''}`.toLowerCase()
+  if (haystack.includes('master') || haystack.includes('magistar')) return [1, 2]
+  return [1, 2, 3]
 }
 
 export function localizedName(value: { nameEn: string; nameSr: string }, language: AppLanguage) {
   if (language === 'en') return value.nameEn || value.nameSr
   const serbianName = value.nameSr || value.nameEn
-  return language === 'sr-Cyrl' ? latinToCyrillic(serbianName) : serbianName
+  return toSerbianScript(serbianName, language)
 }
 
 export function localizedPaperSubject(paper: Pick<Paper, 'subjectNameEn' | 'subjectNameSr'>, language: AppLanguage) {

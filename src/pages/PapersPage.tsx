@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Plus } from 'lucide-react'
+import { MoreHorizontal, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 import { PaperDetailsModal } from '../components/papers/PaperDetailsModal'
@@ -31,6 +31,7 @@ import {
   localizedName,
   localizedPaperSubject,
   monthNames,
+  yearsOfStudyForStudy,
 } from '../lib/utils'
 import { getMajors, getStudies, getSubjects } from '../services/lookups'
 import { getPapers, paperKeys } from '../services/papers'
@@ -91,6 +92,9 @@ export function PapersPage() {
     .filter((subject) => !filters.yearOfStudy || subject.yearOfStudy === filters.yearOfStudy)
     .sort((a, b) => compareLocalizedNames(a, b, language))
 
+  const selectedStudy = studies.data?.data.find((study) => study.id === filters.studiesId)
+  const studyYears = yearsOfStudyForStudy(selectedStudy)
+
   const visiblePapers = (papers.data?.data ?? [])
     .filter((paper) => staffUser || paper.status === 'Approved' || paper.isOwnedByCurrentUser)
     .sort((left, right) => PAPER_STATUSES.indexOf(left.status) - PAPER_STATUSES.indexOf(right.status))
@@ -127,13 +131,14 @@ export function PapersPage() {
       render: (paper) => (
         <Button
           variant="ghost"
-          className="min-h-8 px-2 py-1 text-indigo-600"
+          className="min-h-8 px-2 py-1 text-slate-500"
+          aria-label={t('papers.details')}
           onClick={(event) => {
             event.stopPropagation()
             setSelectedPaperId(paper.id)
           }}
         >
-          {t('papers.details')}
+          <MoreHorizontal className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
         </Button>
       ),
     },
@@ -210,9 +215,9 @@ export function PapersPage() {
             }}
           >
             <option value="">{t('papers.allYears')}</option>
-            {[1, 2, 3, 4, 5, 6].map((year) => (
+            {studyYears.map((year) => (
               <option key={year} value={year}>
-                {t('common.yearNumber', { year })}
+                {t(`common.yearOfStudy.${year}`)}
               </option>
             ))}
           </Select>

@@ -72,6 +72,7 @@ export function PaperDetailsModal({
       setActionError(t('details.reasonOptionalValidation'))
       return
     }
+    if (!window.confirm(t('pending.rejectConfirm', { id: query.data.id }))) return
     setActionError('')
     reject.mutate({ id: query.data.id, reason: trimmed })
   }
@@ -180,6 +181,7 @@ export function PaperDetailsModal({
                   <Button
                     disabled={isBusy}
                     onClick={() => {
+                      if (!window.confirm(t('pending.approveConfirm', { id: query.data.id }))) return
                       setActionError('')
                       approve.mutate(query.data.id)
                     }}

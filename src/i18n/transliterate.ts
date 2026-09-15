@@ -67,7 +67,20 @@ const letters: Record<string, string> = {
   ž: 'ж',
 }
 
-export function latinToCyrillic(value: string) {
+const cyrillicLetters: Record<string, string> = Object.fromEntries(
+  Object.entries(letters).map(([latin, cyrillic]) => [cyrillic, latin]),
+)
+
+const cyrillicDigraphs: Record<string, string> = {
+  Џ: 'Dž',
+  џ: 'dž',
+  Љ: 'Lj',
+  љ: 'lj',
+  Њ: 'Nj',
+  њ: 'nj',
+}
+
+function transliterateLatinChunk(value: string) {
   let result = ''
 
   for (let index = 0; index < value.length; index += 1) {
@@ -81,6 +94,26 @@ export function latinToCyrillic(value: string) {
   }
 
   return result
+}
+
+export function latinToCyrillic(value: string) {
+  return value
+    .split(/(\{\{[^}]+\}\})/)
+    .map((part) => (part.startsWith('{{') ? part : transliterateLatinChunk(part)))
+    .join('')
+}
+
+export function cyrillicToLatin(value: string) {
+  return [...value].map((character) => cyrillicDigraphs[character] ?? cyrillicLetters[character] ?? character).join('')
+}
+
+export function hasCyrillic(value: string) {
+  return /[\u0400-\u04FF]/.test(value)
+}
+
+export function toSerbianScript(value: string, script: 'sr-Latn' | 'sr-Cyrl') {
+  if (script === 'sr-Cyrl') return hasCyrillic(value) ? value : latinToCyrillic(value)
+  return hasCyrillic(value) ? cyrillicToLatin(value) : value
 }
 
 export function transliterateResource<T>(value: T): T {
