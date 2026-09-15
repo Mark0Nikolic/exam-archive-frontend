@@ -3,6 +3,7 @@ import { FileText, Home, PanelLeftClose, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { NavLink } from "react-router-dom";
+import academyLogoSm from "../../assets/akademijanis-sm.png";
 import { useAuth } from "../../hooks/useAuth";
 import { cn, roleName } from "../../lib/utils";
 import { Button } from "../ui";
@@ -119,25 +120,12 @@ export function Sidebar({
           )}
         >
           <div className="relative flex h-[72px] shrink-0 items-center border-b border-slate-200 px-[18px]">
-            <div
-              className={cn(
-                "flex min-w-0 items-center gap-3",
-                collapsed && "lg:mx-auto lg:gap-0",
-              )}
-            >
-              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-blue-600 text-sm font-black text-white shadow-sm shadow-blue-200">
-                E
-              </span>
-              <span
-                className={cn(
-                  "max-w-40 overflow-hidden whitespace-nowrap text-sm font-bold text-slate-900 transition-[max-width,opacity,margin] duration-300",
-                  collapsed
-                    ? "lg:ml-0 lg:max-w-0 lg:opacity-0"
-                    : "ml-0 max-w-40 opacity-100",
-                )}
-              >
-                {t("common.brand")}
-              </span>
+            <div className="flex min-w-0 items-center">
+              <img
+                src={academyLogoSm}
+                alt={t("common.brand")}
+                className="h-8 w-auto max-w-[148px] object-contain"
+              />
             </div>
 
             <button

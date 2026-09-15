@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import academyLogo from '../assets/akademijanis.png'
 import { LanguageSwitcher } from '../components/i18n/LanguageSwitcher'
 import { Button, Field, Input } from '../components/ui'
 import { useAuth } from '../hooks/useAuth'
@@ -51,9 +52,12 @@ export function LoginPage() {
     <main className="relative grid min-h-screen bg-slate-50 lg:grid-cols-2">
       <LanguageSwitcher className="absolute right-4 top-4 z-10 sm:right-6 sm:top-6" />
       <section className="hidden overflow-hidden bg-slate-950 p-12 text-white lg:flex lg:flex-col">
-        <div className="flex items-center gap-3">
-          <span className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-500 font-black">E</span>
-          <span className="font-bold">{t('common.brand')}</span>
+        <div className="w-fit rounded-2xl bg-white px-4 py-3">
+          <img
+            src={academyLogo}
+            alt={t('common.brand')}
+            className="h-14 w-auto max-w-[280px] object-contain"
+          />
         </div>
         <div className="my-auto max-w-xl">
           <h1 className="text-5xl font-black leading-tight tracking-tight">
@@ -67,9 +71,12 @@ export function LoginPage() {
 
       <section className="flex items-center justify-center p-6 pt-20 sm:p-10 sm:pt-24 lg:pt-10">
         <div className="w-full max-w-md">
-          <div className="mb-8 flex items-center gap-3 lg:hidden">
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-600 font-black text-white">E</span>
-            <span className="font-bold text-slate-900">{t('common.brand')}</span>
+          <div className="mb-8 lg:hidden">
+            <img
+              src={academyLogo}
+              alt={t('common.brand')}
+              className="h-14 w-auto max-w-[280px] object-contain"
+            />
           </div>
           <p className="text-sm font-bold text-indigo-600">{t('auth.welcomeBack')}</p>
           <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950">{t('auth.signInTitle')}</h2>
