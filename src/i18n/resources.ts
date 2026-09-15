@@ -170,6 +170,10 @@ export const en = {
     files: 'Files',
     pageNumber: 'Page {{page}}',
     rejectionReason: 'Rejection reason',
+    reviewTitle: 'Review this submission',
+    reasonOptional: 'Rejection reason (optional)',
+    reasonOptionalValidation: 'If you add a reason, it must contain between 3 and 500 characters.',
+    approving: 'Approving…',
   },
   pending: {
     title: 'Pending exam papers',
@@ -369,6 +373,10 @@ export const srLatn = {
     files: 'Datoteke',
     pageNumber: 'Strana {{page}}',
     rejectionReason: 'Razlog odbijanja',
+    reviewTitle: 'Pregledaj ovaj materijal',
+    reasonOptional: 'Razlog odbijanja (opciono)',
+    reasonOptionalValidation: 'Ako unesete razlog, on mora imati između 3 i 500 znakova.',
+    approving: 'Odobravanje…',
   },
   pending: {
     title: 'Blanketi na čekanju',

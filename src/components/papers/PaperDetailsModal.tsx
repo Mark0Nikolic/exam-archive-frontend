@@ -1,10 +1,12 @@
-import { useQuery } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { useAuth } from '../../hooks/useAuth'
 import { toAppLanguage } from '../../i18n'
 import { ApiError } from '../../lib/axios'
-import { formatBytes, formatDate, localizedPaperSubject, monthNames } from '../../lib/utils'
-import { getPaper, paperKeys } from '../../services/papers'
-import { ErrorState, LoadingState, Modal, StatusBadge } from '../ui'
+import { formatBytes, formatDate, isStaff, localizedPaperSubject, monthNames } from '../../lib/utils'
+import { approvePaper, getPaper, paperKeys, rejectPaper } from '../../services/papers'
+import { Button, ErrorState, Field, LoadingState, Modal, StatusBadge, Textarea } from '../ui'
 
 export function PaperDetailsModal({
   paperId,
@@ -14,12 +16,44 @@ export function PaperDetailsModal({
   onClose: () => void
 }) {
   const { t, i18n } = useTranslation()
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
   const language = toAppLanguage(i18n.resolvedLanguage ?? i18n.language)
   const months = monthNames(language)
+  const [reason, setReason] = useState('')
+  const [actionError, setActionError] = useState('')
+
   const query = useQuery({
     queryKey: paperKeys.detail(paperId ?? 0),
     queryFn: () => getPaper(paperId as number),
     enabled: paperId !== null,
+  })
+
+  useEffect(() => {
+    setReason('')
+    setActionError('')
+  }, [paperId])
+
+  const approve = useMutation({
+    mutationFn: approvePaper,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: paperKeys.all })
+      onClose()
+    },
+    onError: (error) =>
+      setActionError(error instanceof ApiError ? error.message : t('pending.approveError')),
+  })
+
+  const reject = useMutation({
+    mutationFn: rejectPaper,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: paperKeys.all })
+      onClose()
+    },
+    onError: (error) =>
+      setActionError(
+        error instanceof ApiError ? error.message : t('pending.rejectError'),
+      ),
   })
 
   const files = query.data
@@ -27,6 +61,20 @@ export function PaperDetailsModal({
         .flatMap(([, entries]) => entries ?? [])
         .sort((a, b) => a.pageNumber - b.pageNumber)
     : []
+
+  const canReview = isStaff(user?.role) && query.data?.status === 'Pending'
+  const isBusy = approve.isPending || reject.isPending
+
+  const submitReject = () => {
+    if (!query.data) return
+    const trimmed = reason.trim()
+    if (trimmed.length > 0 && (trimmed.length < 3 || trimmed.length > 500)) {
+      setActionError(t('details.reasonOptionalValidation'))
+      return
+    }
+    setActionError('')
+    reject.mutate({ id: query.data.id, reason: trimmed })
+  }
 
   return (
     <Modal
@@ -96,6 +144,49 @@ export function PaperDetailsModal({
               <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
                 <p className="text-sm font-bold text-rose-800">{t('details.rejectionReason')}</p>
                 <p className="mt-1 text-sm text-rose-700">{query.data.rejectionReason}</p>
+              </div>
+            )}
+            {canReview && (
+              <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <h3 className="text-sm font-bold text-slate-800">{t('details.reviewTitle')}</h3>
+                <Field
+                  label={t('details.reasonOptional')}
+                  hint={t('common.characters', { count: reason.trim().length })}
+                >
+                  <Textarea
+                    value={reason}
+                    maxLength={500}
+                    placeholder={t('pending.reasonPlaceholder')}
+                    disabled={isBusy}
+                    onChange={(event) => {
+                      setReason(event.target.value)
+                      setActionError('')
+                    }}
+                  />
+                </Field>
+                {actionError && (
+                  <p role="alert" className="text-sm font-medium text-rose-600">
+                    {actionError}
+                  </p>
+                )}
+                <div className="flex flex-wrap justify-end gap-3">
+                  <Button
+                    variant="danger"
+                    disabled={isBusy}
+                    onClick={submitReject}
+                  >
+                    {reject.isPending ? t('pending.rejecting') : t('pending.reject')}
+                  </Button>
+                  <Button
+                    disabled={isBusy}
+                    onClick={() => {
+                      setActionError('')
+                      approve.mutate(query.data.id)
+                    }}
+                  >
+                    {approve.isPending ? t('details.approving') : t('pending.approve')}
+                  </Button>
+                </div>
               </div>
             )}
           </div>

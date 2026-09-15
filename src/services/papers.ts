@@ -41,9 +41,10 @@ export async function approvePaper(id: number) {
   return data
 }
 
-export async function rejectPaper(input: { id: number; reason: string }) {
+export async function rejectPaper(input: { id: number; reason?: string }) {
+  const reason = input.reason?.trim() ?? ''
   const { data } = await api.post<PaperDetail>(`/api/papers/${input.id}/reject`, {
-    reason: input.reason,
+    reason: reason.length > 0 ? reason : null,
   })
   return data
 }
