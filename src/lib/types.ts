@@ -28,23 +28,69 @@ export interface PaginatedResponse<T> {
 export interface Study {
   id: number
   nameSr: string
-  nameEn: string
-  yearsOfStudy?: number
+  nameEn: string | null
+  yearsOfStudy: number
 }
 
 export interface Major {
   id: number
   nameSr: string
-  nameEn: string
+  nameEn: string | null
   studiesId: number
 }
 
 export interface Subject {
   id: number
-  code: string
+  code: string | null
   nameSr: string
-  nameEn: string
+  nameEn: string | null
   yearOfStudy: number
+}
+
+export interface SubjectPlacement {
+  majorId: number
+  majorNameSr: string
+  majorNameEn: string | null
+  studiesId: number
+  studiesNameSr: string
+  studiesNameEn: string | null
+  yearOfStudy: number
+}
+
+export interface CatalogueSubject {
+  id: number
+  code: string | null
+  nameSr: string
+  nameEn: string | null
+  placements: SubjectPlacement[]
+}
+
+export interface SaveStudyInput {
+  nameSr: string
+  nameEn: string | null
+  yearsOfStudy: number
+}
+
+export interface SaveMajorInput {
+  nameSr: string
+  nameEn: string | null
+  studiesId: number
+}
+
+export interface CreateSubjectInput {
+  nameSr: string
+  nameEn: string | null
+  code: string | null
+  majorId: number
+  yearOfStudy: number
+}
+
+export interface UpdateSubjectInput {
+  nameSr: string
+  nameEn: string | null
+  code: string | null
+  majorId?: number
+  yearOfStudy?: number
 }
 
 export const EXAM_TYPES = ['Midterm', 'Final', 'Resit'] as const
@@ -57,7 +103,7 @@ export interface Paper {
   id: number
   subjectId: number
   subjectNameSr: string
-  subjectNameEn: string
+  subjectNameEn: string | null
   examType: ExamType
   month: number
   year: number

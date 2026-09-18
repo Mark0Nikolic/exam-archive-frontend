@@ -245,7 +245,7 @@ export function EditPaperModal({
               >
                 <option value="">{t('papers.allYears')}</option>
                 {studyYears.map((year) => (
-                  <option key={year} value={year}>{t(`common.yearOfStudy.${year}`)}</option>
+                  <option key={year} value={year}>{t('common.studyYear', { year })}</option>
                 ))}
               </Select>
             </Field>

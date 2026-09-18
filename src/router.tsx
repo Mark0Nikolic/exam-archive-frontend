@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { AppShell } from './components/main/AppShell'
 import { LoadingState } from './components/ui'
 import { useAuth } from './hooks/useAuth'
-import { isStaff } from './lib/utils'
+import { isAdmin, isStaff } from './lib/utils'
+import { CataloguePage } from './pages/CataloguePage'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
 import { PapersPage } from './pages/PapersPage'
@@ -33,6 +34,11 @@ function StaffRoute({ children }: { children: ReactNode }) {
   return isStaff(user?.role) ? children : <Navigate to="/home" replace />
 }
 
+function AdminRoute({ children }: { children: ReactNode }) {
+  const { user } = useAuth()
+  return isAdmin(user?.role) ? children : <Navigate to="/home" replace />
+}
+
 export function AppRouter() {
   return (
     <Routes>
@@ -47,6 +53,14 @@ export function AppRouter() {
         <Route index element={<Navigate to="/home" replace />} />
         <Route path="/home" element={<HomePage />} />
         <Route path="/papers" element={<PapersPage />} />
+        <Route
+          path="/admin/catalogue"
+          element={
+            <AdminRoute>
+              <CataloguePage />
+            </AdminRoute>
+          }
+        />
         <Route
           path="/pending"
           element={

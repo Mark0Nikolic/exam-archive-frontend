@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { FileText, Home, PanelLeftClose, X } from "lucide-react";
+import { BookOpen, FileText, Home, PanelLeftClose, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { NavLink } from "react-router-dom";
 import academyLogoSm from "../../assets/akademijanis-sm.png";
 import { useAuth } from "../../hooks/useAuth";
-import { cn, roleName } from "../../lib/utils";
+import { cn, isAdmin, roleName } from "../../lib/utils";
 import { Button } from "../ui";
 
 interface SidebarProps {
@@ -34,6 +34,12 @@ const libraryItems = [
     icon: FileText,
   },
 ] satisfies NavItem[];
+
+const catalogueItem = {
+  to: "/admin/catalogue",
+  labelKey: "shell.catalogue",
+  icon: BookOpen,
+} satisfies NavItem;
 
 function SidebarNavLink({
   item,
@@ -180,6 +186,24 @@ export function Sidebar({
                 />
               ))}
             </div>
+            {isAdmin(user.role) && (
+              <>
+                <div className="my-4 border-t border-slate-200" />
+                <p
+                  className={cn(
+                    "mb-2 max-h-5 overflow-hidden px-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400 transition-[max-height,opacity] duration-300",
+                    collapsed && "lg:mb-0 lg:max-h-0 lg:opacity-0",
+                  )}
+                >
+                  {t("shell.administration")}
+                </p>
+                <SidebarNavLink
+                  item={catalogueItem}
+                  collapsed={collapsed}
+                  onMobileClose={onMobileClose}
+                />
+              </>
+            )}
           </nav>
 
           <div className="relative shrink-0 border-t border-slate-200 p-3">

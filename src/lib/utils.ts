@@ -58,7 +58,7 @@ export function monthNames(language: AppLanguage) {
   })
 }
 
-export function yearsOfStudyForStudy(study?: Pick<Study, 'nameEn' | 'nameSr'> & { yearsOfStudy?: number }) {
+export function yearsOfStudyForStudy(study?: Pick<Study, 'nameEn' | 'nameSr' | 'yearsOfStudy'>) {
   if (study?.yearsOfStudy && study.yearsOfStudy > 0) {
     return Array.from({ length: study.yearsOfStudy }, (_, index) => index + 1)
   }
@@ -68,9 +68,9 @@ export function yearsOfStudyForStudy(study?: Pick<Study, 'nameEn' | 'nameSr'> & 
   return [1, 2, 3]
 }
 
-export function localizedName(value: { nameEn: string; nameSr: string }, language: AppLanguage) {
+export function localizedName(value: { nameEn: string | null; nameSr: string }, language: AppLanguage) {
   if (language === 'en') return value.nameEn || value.nameSr
-  const serbianName = value.nameSr || value.nameEn
+  const serbianName = value.nameSr || value.nameEn || ''
   return toSerbianScript(serbianName, language)
 }
 
@@ -79,8 +79,8 @@ export function localizedPaperSubject(paper: Pick<Paper, 'subjectNameEn' | 'subj
 }
 
 export function compareLocalizedNames(
-  first: { nameEn: string; nameSr: string },
-  second: { nameEn: string; nameSr: string },
+  first: { nameEn: string | null; nameSr: string },
+  second: { nameEn: string | null; nameSr: string },
   language: AppLanguage,
 ) {
   return localizedName(first, language).localeCompare(localizedName(second, language), localeCode(language))

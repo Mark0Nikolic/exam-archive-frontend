@@ -251,7 +251,7 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
                 <option value="">{t('papers.allYears')}</option>
                 {studyYears.map((year) => (
                   <option key={year} value={year}>
-                    {t(`common.yearOfStudy.${year}`)}
+                    {t('common.studyYear', { year })}
                   </option>
                 ))}
               </Select>
