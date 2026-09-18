@@ -43,20 +43,28 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error: AxiosError<ProblemDetails>) => {
+  async (error: AxiosError<ProblemDetails | Blob>) => {
     if (!error.response) {
       return Promise.reject(
         new ApiError(0, i18n.t('common.connectionFailedTitle'), i18n.t('common.connectionFailed')),
       )
     }
 
-    const body = error.response.data
+    let body = error.response.data
+    if (body instanceof Blob && body.type.includes('json')) {
+      try {
+        body = JSON.parse(await body.text()) as ProblemDetails
+      } catch {
+        body = {}
+      }
+    }
+    const problem = body instanceof Blob ? undefined : body
     return Promise.reject(
       new ApiError(
         error.response.status,
-        body?.title ?? i18n.t('common.requestFailed'),
-        body?.detail ?? error.message,
-        body?.errors,
+        problem?.title ?? i18n.t('common.requestFailed'),
+        problem?.detail ?? error.message,
+        problem?.errors,
       ),
     )
   },

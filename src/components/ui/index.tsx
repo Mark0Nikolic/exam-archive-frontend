@@ -13,6 +13,8 @@ import { cn } from '../../lib/utils'
 import type { PaperStatus } from '../../lib/types'
 
 export { FileDropZone } from './FileDropZone'
+export { ActionMenu } from './ActionMenu'
+export type { ActionMenuItem } from './ActionMenu'
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost'
 

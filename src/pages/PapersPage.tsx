@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { MoreHorizontal, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
+import { EditPaperModal } from '../components/papers/EditPaperModal'
+import { PaperActions } from '../components/papers/PaperActions'
 import { PaperDetailsModal } from '../components/papers/PaperDetailsModal'
 import { UploadPaperModal } from '../components/papers/UploadPaperModal'
 import {
@@ -47,6 +49,8 @@ export function PapersPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [uploadOpen, setUploadOpen] = useState(false)
   const [selectedPaperId, setSelectedPaperId] = useState<number | null>(null)
+  const [editPaperId, setEditPaperId] = useState<number | null>(null)
+  const [actionError, setActionError] = useState('')
 
   const filters = {
     studiesId: toNumber(searchParams.get('studiesId')),
@@ -129,17 +133,12 @@ export function PapersPage() {
       header: '',
       className: 'text-right',
       render: (paper) => (
-        <Button
-          variant="ghost"
-          className="min-h-8 px-2 py-1 text-slate-500"
-          aria-label={t('papers.details')}
-          onClick={(event) => {
-            event.stopPropagation()
-            setSelectedPaperId(paper.id)
-          }}
-        >
-          <MoreHorizontal className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
-        </Button>
+        <PaperActions
+          paper={paper}
+          onPreview={() => setSelectedPaperId(paper.id)}
+          onEdit={() => setEditPaperId(paper.id)}
+          onError={setActionError}
+        />
       ),
     },
   ]
@@ -274,6 +273,12 @@ export function PapersPage() {
         </Field>
       </FilterPanel>
 
+      {actionError && (
+        <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {actionError}
+        </div>
+      )}
+
       {papers.isPending ? (
         <LoadingState label={t('papers.loading')} />
       ) : papers.isError ? (
@@ -302,6 +307,7 @@ export function PapersPage() {
 
       <UploadPaperModal open={uploadOpen} onClose={() => setUploadOpen(false)} />
       <PaperDetailsModal paperId={selectedPaperId} onClose={() => setSelectedPaperId(null)} />
+      <EditPaperModal paperId={editPaperId} onClose={() => setEditPaperId(null)} />
     </div>
   )
 }

@@ -1,11 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Download } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../hooks/useAuth'
 import { toAppLanguage } from '../../i18n'
 import { ApiError } from '../../lib/axios'
 import { formatBytes, formatDate, isStaff, localizedPaperSubject, monthNames } from '../../lib/utils'
-import { approvePaper, getPaper, paperKeys, rejectPaper } from '../../services/papers'
+import {
+  approvePaper,
+  downloadPaper,
+  getPaper,
+  paperKeys,
+  previewPaper,
+  rejectPaper,
+} from '../../services/papers'
 import { Button, ErrorState, Field, LoadingState, Modal, StatusBadge, Textarea } from '../ui'
 
 export function PaperDetailsModal({
@@ -20,19 +28,42 @@ export function PaperDetailsModal({
   const queryClient = useQueryClient()
   const language = toAppLanguage(i18n.resolvedLanguage ?? i18n.language)
   const months = monthNames(language)
+  const [statePaperId, setStatePaperId] = useState(paperId)
   const [reason, setReason] = useState('')
   const [actionError, setActionError] = useState('')
+  const [fileError, setFileError] = useState('')
+
+  if (paperId !== statePaperId) {
+    setStatePaperId(paperId)
+    setReason('')
+    setActionError('')
+    setFileError('')
+  }
 
   const query = useQuery({
     queryKey: paperKeys.detail(paperId ?? 0),
     queryFn: () => getPaper(paperId as number),
     enabled: paperId !== null,
   })
+  const preview = useQuery({
+    queryKey: paperKeys.preview(paperId ?? 0),
+    queryFn: () => previewPaper(paperId as number),
+    enabled: paperId !== null,
+    gcTime: 0,
+    retry: false,
+  })
 
-  useEffect(() => {
-    setReason('')
-    setActionError('')
-  }, [paperId])
+  const previewUrl = useMemo(
+    () => preview.data ? URL.createObjectURL(preview.data.blob) : '',
+    [preview.data],
+  )
+
+  useEffect(
+    () => () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl)
+    },
+    [previewUrl],
+  )
 
   const approve = useMutation({
     mutationFn: approvePaper,
@@ -54,6 +85,22 @@ export function PaperDetailsModal({
       setActionError(
         error instanceof ApiError ? error.message : t('pending.rejectError'),
       ),
+  })
+
+  const download = useMutation({
+    mutationFn: () => downloadPaper(paperId as number),
+    onSuccess: ({ blob, fileName }) => {
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = fileName
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      window.setTimeout(() => URL.revokeObjectURL(url), 0)
+    },
+    onError: (error) =>
+      setFileError(error instanceof ApiError ? error.message : t('details.downloadError')),
   })
 
   const files = query.data
@@ -83,6 +130,7 @@ export function PaperDetailsModal({
       title={t('details.title')}
       description={t('details.description')}
       onClose={onClose}
+      width="max-w-6xl"
     >
       <div className="p-5 sm:p-6">
         {query.isPending ? (
@@ -100,7 +148,51 @@ export function PaperDetailsModal({
                   {localizedPaperSubject(query.data, language)}
                 </p>
               </div>
-              <StatusBadge status={query.data.status} />
+              <div className="flex items-center gap-3">
+                <StatusBadge status={query.data.status} />
+                <Button
+                  variant="secondary"
+                  className="min-h-9 px-3 py-1.5"
+                  disabled={download.isPending}
+                  onClick={() => {
+                    setFileError('')
+                    download.mutate()
+                  }}
+                >
+                  <Download className="h-4 w-4" aria-hidden="true" />
+                  {download.isPending ? t('details.downloading') : t('details.downloadPdf')}
+                </Button>
+              </div>
+            </div>
+            {fileError && (
+              <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                {fileError}
+              </p>
+            )}
+            <div>
+              <h3 className="text-sm font-bold text-slate-800">{t('details.preview')}</h3>
+              <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                {preview.isPending ? (
+                  <LoadingState label={t('details.previewLoading')} />
+                ) : preview.isError ? (
+                  <div className="p-4">
+                    <ErrorState
+                      message={preview.error instanceof ApiError
+                        ? preview.error.message
+                        : t('details.previewError')}
+                      onRetry={() => preview.refetch()}
+                    />
+                  </div>
+                ) : previewUrl ? (
+                  <iframe
+                    src={previewUrl}
+                    title={t('details.previewTitle', {
+                      subject: localizedPaperSubject(query.data, language),
+                    })}
+                    className="h-[58vh] min-h-[420px] w-full bg-white"
+                  />
+                ) : null}
+              </div>
             </div>
             <dl className="grid grid-cols-2 gap-4 rounded-xl bg-slate-50 p-4 sm:grid-cols-4">
               <div>

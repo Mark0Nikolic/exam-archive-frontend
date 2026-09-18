@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
+import { EditPaperModal } from '../components/papers/EditPaperModal'
+import { PaperActions } from '../components/papers/PaperActions'
 import { PaperDetailsModal } from '../components/papers/PaperDetailsModal'
 import {
   Button,
@@ -117,6 +119,7 @@ export function PendingPapersPage() {
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
   const [selectedPaperId, setSelectedPaperId] = useState<number | null>(null)
+  const [editPaperId, setEditPaperId] = useState<number | null>(null)
   const [paperToReject, setPaperToReject] = useState<Paper | null>(null)
   const [actionError, setActionError] = useState('')
 
@@ -192,6 +195,12 @@ export function PendingPapersPage() {
           >
             {t('pending.reject')}
           </Button>
+          <PaperActions
+            paper={paper}
+            onPreview={() => setSelectedPaperId(paper.id)}
+            onEdit={() => setEditPaperId(paper.id)}
+            onError={setActionError}
+          />
         </div>
       ),
     },
@@ -266,6 +275,7 @@ export function PendingPapersPage() {
       )}
 
       <PaperDetailsModal paperId={selectedPaperId} onClose={() => setSelectedPaperId(null)} />
+      <EditPaperModal paperId={editPaperId} onClose={() => setEditPaperId(null)} />
       <RejectModal paper={paperToReject} onClose={() => setPaperToReject(null)} />
     </div>
   )

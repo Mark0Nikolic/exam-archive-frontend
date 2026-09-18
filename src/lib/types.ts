@@ -112,4 +112,17 @@ export interface UploadPaperInput {
   year: number
 }
 
+export interface UpdatePaperMetadataInput {
+  id: number
+  subjectId: number
+  examType: ExamType
+  month: number
+  year: number
+}
+
+export interface PaperPdf {
+  blob: Blob
+  fileName: string
+}
+
 export type ValidationErrors = Record<string, string[]>

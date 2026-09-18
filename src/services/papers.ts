@@ -3,7 +3,9 @@ import type {
   PaginatedResponse,
   Paper,
   PaperDetail,
+  PaperPdf,
   PaperQuery,
+  UpdatePaperMetadataInput,
   UploadedPaper,
   UploadPaperInput,
 } from '../lib/types'
@@ -12,6 +14,7 @@ export const paperKeys = {
   all: ['papers'] as const,
   list: (query: PaperQuery) => [...paperKeys.all, 'list', query] as const,
   detail: (id: number) => [...paperKeys.all, 'detail', id] as const,
+  preview: (id: number) => [...paperKeys.all, 'preview', id] as const,
 }
 
 export async function getPapers(query: PaperQuery) {
@@ -46,5 +49,48 @@ export async function rejectPaper(input: { id: number; reason?: string }) {
   const { data } = await api.post<PaperDetail>(`/api/papers/${input.id}/reject`, {
     reason: reason.length > 0 ? reason : null,
   })
+  return data
+}
+
+function fileNameFromDisposition(disposition: string | undefined, fallback: string) {
+  if (!disposition) return fallback
+
+  const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1]
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded.replace(/^["']|["']$/g, ''))
+    } catch {
+      return encoded
+    }
+  }
+
+  return disposition.match(/filename="?([^";]+)"?/i)?.[1] ?? fallback
+}
+
+async function getPaperPdf(id: number, action: 'preview' | 'download'): Promise<PaperPdf> {
+  const response = await api.get<Blob>(`/api/papers/${id}/${action}`, {
+    responseType: 'blob',
+    headers: { Accept: 'application/pdf' },
+  })
+
+  return {
+    blob: response.data,
+    fileName: fileNameFromDisposition(
+      response.headers['content-disposition'],
+      `exam-paper-${id}.pdf`,
+    ),
+  }
+}
+
+export function previewPaper(id: number) {
+  return getPaperPdf(id, 'preview')
+}
+
+export function downloadPaper(id: number) {
+  return getPaperPdf(id, 'download')
+}
+
+export async function updatePaperMetadata({ id, ...input }: UpdatePaperMetadataInput) {
+  const { data } = await api.patch<PaperDetail>(`/api/papers/${id}`, input)
   return data
 }
