@@ -9,7 +9,7 @@ import { EXAM_TYPES } from '../../lib/types'
 import type { ExamType } from '../../lib/types'
 import { compareLocalizedNames, fieldError, formatBytes, localizedName, monthNames, yearsOfStudyForStudy } from '../../lib/utils'
 import { getMajors, getStudies, getSubjects } from '../../services/lookups'
-import { paperKeys, uploadPaper } from '../../services/papers'
+import { getPaper, paperKeys, uploadPaper } from '../../services/papers'
 import { Button, Field, FileDropZone, Input, Modal, Select } from '../ui'
 import { PaperQuestionsPanel } from './PaperQuestionsPanel'
 
@@ -161,6 +161,15 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
   }
 
   const result = mutation.data
+  const uploaded = useQuery({
+    queryKey: paperKeys.detail(result?.id ?? 0),
+    queryFn: () => getPaper(result!.id),
+    enabled: open && result?.status === 'Approved',
+    refetchInterval: (current) => current.state.data?.parseStatus === 'Queued' ? 2000 : false,
+  })
+  const parseStatus = uploaded.data?.parseStatus ?? result?.parseStatus
+  const questionCount = uploaded.data?.questionCount ?? result?.questionCount
+  const parseError = uploaded.data?.parseError
 
   return (
     <Modal
@@ -195,7 +204,13 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
             </div>
           )}
           {result.status === 'Approved' && (
-            <PaperQuestionsPanel paperId={result.id} enabled />
+            <PaperQuestionsPanel
+              paperId={result.id}
+              parseStatus={parseStatus}
+              parseError={parseError}
+              questionCount={questionCount}
+              enabled
+            />
           )}
           <div className="flex justify-end">
             <Button onClick={close}>{t('common.done')}</Button>

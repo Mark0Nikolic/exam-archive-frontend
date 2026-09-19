@@ -187,6 +187,7 @@ export const en = {
     pages: 'Pages',
     uploaded: 'Uploaded',
     files: 'Files',
+    fileSize: 'Size',
     pageNumber: 'Page {{page}}',
     rejectionReason: 'Rejection reason',
     reviewTitle: 'Review this submission',
@@ -202,6 +203,8 @@ export const en = {
     questionsSkippedNoNumbers: 'No numbered questions were found.',
     questionsLoadError: 'Unable to load questions for this paper.',
     questionsEmpty: 'No questions were extracted.',
+    questionsExpand: 'Expand',
+    questionsCollapse: 'Collapse',
   },
   editPaper: {
     action: 'Edit metadata',
@@ -501,6 +504,7 @@ export const srLatn = {
     pages: 'Strane',
     uploaded: 'Dodato',
     files: 'Datoteke',
+    fileSize: 'Veličina',
     pageNumber: 'Strana {{page}}',
     rejectionReason: 'Razlog odbijanja',
     reviewTitle: 'Pregledaj ovaj materijal',
@@ -516,6 +520,8 @@ export const srLatn = {
     questionsSkippedNoNumbers: 'Nisu pronađeni numerisani zadaci.',
     questionsLoadError: 'Zadaci za ovaj blanket nisu mogli da se učitaju.',
     questionsEmpty: 'Nisu izdvojeni zadaci.',
+    questionsExpand: 'Proširi',
+    questionsCollapse: 'Skupi',
   },
   editPaper: {
     action: 'Izmeni podatke',

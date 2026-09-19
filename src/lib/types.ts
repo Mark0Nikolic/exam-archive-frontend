@@ -128,6 +128,7 @@ export interface PaperFile {
 
 export interface PaperDetail extends Paper {
   files: Partial<Record<'pdf' | 'jpg' | 'png' | 'webp' | 'docx', PaperFile[]>>
+  parseError?: string | null
 }
 
 export interface PaperQuestion {
@@ -152,6 +153,8 @@ export interface UploadedPaper {
   status: PaperStatus
   files: PaperFile[]
   claimToken: string | null
+  parseStatus?: ParseStatus
+  questionCount?: number
 }
 
 export interface PaperQuery {

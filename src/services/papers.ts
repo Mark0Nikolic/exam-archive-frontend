@@ -114,15 +114,8 @@ async function getPaperPdf(id: number, action: 'preview' | 'download'): Promise<
 
 export async function getPaperQuestions(id: number) {
   const { data } = await api.get<PaperQuestions | PaperQuestion[]>(`/api/papers/${id}/questions`)
-  if (Array.isArray(data)) {
-    return { parseStatus: 'Parsed' as const, parseError: null, questions: data }
-  }
-
-  return {
-    parseStatus: data.parseStatus,
-    parseError: data.parseError ?? null,
-    questions: data.questions ?? [],
-  }
+  if (Array.isArray(data)) return data
+  return data.questions ?? []
 }
 
 export function previewPaper(id: number) {
