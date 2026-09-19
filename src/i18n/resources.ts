@@ -122,6 +122,10 @@ export const en = {
     loadError: 'Unable to load papers.',
     emptyTitle: 'No papers found',
     emptyDescription: 'Try changing or clearing the active filters.',
+    delete: 'Delete paper',
+    deleteConfirm: 'Delete “{{subject}}” (#{{id}})? This cannot be undone.',
+    deleting: 'Deleting…',
+    deleteError: 'The paper could not be deleted.',
   },
   upload: {
     uploadedTitle: 'Exam paper uploaded',
@@ -167,7 +171,6 @@ export const en = {
   },
   details: {
     title: 'Exam paper details',
-    description: 'Preview the combined paper, download it, or review its metadata.',
     loading: 'Loading exam paper details…',
     loadError: 'Unable to load this exam paper.',
     preview: 'Preview',
@@ -240,6 +243,7 @@ export const en = {
     detachSubject: 'Remove from this major',
     detachConfirm: 'Remove “{{subject}}” from this major? The subject itself and its papers will remain.',
     openSubjectActions: 'Open actions for {{subject}}',
+    viewPapers: 'View papers',
     subjectPlacementDescription: 'Update the subject details and its year in the selected major.',
     subjectIdentityDescription: 'Update shared subject details without changing its major placements.',
     attachSubject: 'Attach an existing subject',
@@ -421,6 +425,10 @@ export const srLatn = {
     loadError: 'Blanketi nisu mogli da se učitaju.',
     emptyTitle: 'Nema pronađenih blanketa',
     emptyDescription: 'Promenite ili uklonite aktivne filtere.',
+    delete: 'Obriši blanket',
+    deleteConfirm: 'Obrisati „{{subject}}” (#{{id}})? Ova radnja se ne može opozvati.',
+    deleting: 'Brisanje…',
+    deleteError: 'Blanket nije mogao da se obriše.',
   },
   upload: {
     uploadedTitle: 'Blanket je dodat',
@@ -466,7 +474,6 @@ export const srLatn = {
   },
   details: {
     title: 'Detalji blanketa',
-    description: 'Pregledajte objedinjeni blanket, preuzmite ga ili proverite njegove podatke.',
     loading: 'Učitavanje detalja blanketa…',
     loadError: 'Ovaj blanket nije mogao da se učita.',
     preview: 'Pregled',
@@ -539,6 +546,7 @@ export const srLatn = {
     detachSubject: 'Ukloni iz ovog smera',
     detachConfirm: 'Ukloniti „{{subject}}” iz ovog smera? Predmet i njegovi blanketi će ostati.',
     openSubjectActions: 'Otvori radnje za {{subject}}',
+    viewPapers: 'Prikaži blankete',
     subjectPlacementDescription: 'Izmenite podatke predmeta i godinu u izabranom smeru.',
     subjectIdentityDescription: 'Izmenite zajedničke podatke predmeta bez promene smerova.',
     attachSubject: 'Poveži postojeći predmet',

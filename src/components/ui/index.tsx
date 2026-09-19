@@ -88,13 +88,15 @@ export function Modal({
   open,
   title,
   description,
+  ariaLabel,
   children,
   onClose,
   width = 'max-w-2xl',
 }: {
   open: boolean
-  title: string
+  title?: string
   description?: string
+  ariaLabel?: string
   children: ReactNode
   onClose: () => void
   width?: string
@@ -153,7 +155,8 @@ export function Modal({
       <section
         aria-modal="true"
         role="dialog"
-        aria-labelledby="modal-title"
+        aria-labelledby={title ? 'modal-title' : undefined}
+        aria-label={title ? undefined : ariaLabel}
         className={cn(
           'max-h-[94vh] w-full overflow-y-auto rounded-t-2xl bg-white shadow-2xl transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none sm:rounded-2xl',
           visible
@@ -162,13 +165,20 @@ export function Modal({
           width,
         )}
       >
-        <div className="flex items-start justify-between border-b border-slate-200 px-5 py-4 sm:px-6">
-          <div>
-            <h2 id="modal-title" className="text-lg font-bold text-slate-950">
-              {title}
-            </h2>
-            {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
-          </div>
+        <div
+          className={cn(
+            'flex border-b border-slate-200 px-5 sm:px-6',
+            title ? 'items-start justify-between py-4' : 'items-center justify-end py-2',
+          )}
+        >
+          {title ? (
+            <div>
+              <h2 id="modal-title" className="text-lg font-bold text-slate-950">
+                {title}
+              </h2>
+              {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
+            </div>
+          ) : null}
           <button
             type="button"
             aria-label={t('common.close')}

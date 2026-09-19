@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { BookOpen, Link, Plus } from 'lucide-react'
+import { BookOpen, FileText, Link, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   AttachSubjectModal,
   MajorFormModal,
@@ -24,7 +25,7 @@ import type { Column } from '../components/ui'
 import { toAppLanguage } from '../i18n'
 import { ApiError } from '../lib/axios'
 import type { CatalogueSubject, Major, Study, Subject } from '../lib/types'
-import { localizedName } from '../lib/utils'
+import { localizedName, papersListPath, yearsOfStudyForStudy } from '../lib/utils'
 import {
   catalogueKeys,
   deleteMajor,
@@ -34,6 +35,8 @@ import {
   getCatalogueSubjects,
 } from '../services/catalogue'
 import { getMajors, getStudies, getSubjects } from '../services/lookups'
+
+const toNumber = (value: string | null) => (value ? Number(value) : undefined)
 
 type SubjectEditor = {
   subject?: Pick<Subject, 'id' | 'code' | 'nameSr' | 'nameEn'>
@@ -45,18 +48,29 @@ type SubjectEditor = {
 export function CataloguePage() {
   const { t, i18n } = useTranslation()
   const language = toAppLanguage(i18n.resolvedLanguage ?? i18n.language)
+  const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const queryClient = useQueryClient()
-  const [studyId, setStudyId] = useState('')
-  const [majorId, setMajorId] = useState('')
-  const [view, setView] = useState<'major' | 'all'>('major')
-  const [search, setSearch] = useState('')
-  const [cataloguePage, setCataloguePage] = useState(1)
+  const studyId = searchParams.get('studiesId') ?? ''
+  const majorId = searchParams.get('majorId') ?? ''
+  const yearOfStudy = toNumber(searchParams.get('yearOfStudy'))
+  const view = searchParams.get('view') === 'all' ? 'all' : 'major'
+  const search = searchParams.get('q') ?? ''
+  const cataloguePage = toNumber(searchParams.get('page')) ?? 1
   const [studyEditor, setStudyEditor] = useState<Study | 'new' | null>(null)
   const [majorEditor, setMajorEditor] = useState<Major | 'new' | null>(null)
   const [subjectEditor, setSubjectEditor] = useState<SubjectEditor | null>(null)
   const [attachOpen, setAttachOpen] = useState(false)
   const [actionError, setActionError] = useState('')
   const [actionBusy, setActionBusy] = useState(false)
+
+  const setCatalogueParams = (mutate: (next: URLSearchParams) => void) => {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current)
+      mutate(next)
+      return next
+    })
+  }
 
   const studies = useQuery({
     queryKey: catalogueKeys.studies,
@@ -65,6 +79,7 @@ export function CataloguePage() {
   })
   const effectiveStudyId = Number(studyId) || studies.data?.data[0]?.id || 0
   const selectedStudy = studies.data?.data.find((study) => study.id === effectiveStudyId)
+  const studyYears = yearsOfStudyForStudy(selectedStudy)
 
   const majors = useQuery({
     queryKey: catalogueKeys.majors(effectiveStudyId),
@@ -76,16 +91,43 @@ export function CataloguePage() {
   const selectedMajor = majors.data?.data.find((major) => major.id === effectiveMajorId)
 
   const subjects = useQuery({
-    queryKey: catalogueKeys.subjects(effectiveMajorId),
-    queryFn: () => getSubjects(effectiveMajorId),
+    queryKey: catalogueKeys.subjects(effectiveMajorId, yearOfStudy),
+    queryFn: () => getSubjects(effectiveMajorId, yearOfStudy),
     enabled: effectiveMajorId > 0,
   })
+  const visibleSubjects = (subjects.data?.data ?? []).filter(
+    (subject) => !yearOfStudy || subject.yearOfStudy === yearOfStudy,
+  )
   const allSubjects = useQuery({
     queryKey: catalogueKeys.subjectCatalogue(search, cataloguePage),
     queryFn: () => getCatalogueSubjects(search, cataloguePage),
     enabled: view === 'all',
     placeholderData: (previous) => previous,
   })
+
+  const openSubjectPapers = (subject: Subject) => {
+    navigate(papersListPath({
+      studiesId: effectiveStudyId || undefined,
+      majorId: effectiveMajorId || undefined,
+      yearOfStudy: yearOfStudy ?? subject.yearOfStudy,
+      subjectId: subject.id,
+    }))
+  }
+
+  const openCatalogueSubjectPapers = (subject: CatalogueSubject) => {
+    const placement = subject.placements.find((item) =>
+      (!effectiveStudyId || item.studiesId === effectiveStudyId)
+      && (!effectiveMajorId || item.majorId === effectiveMajorId)
+      && (!yearOfStudy || item.yearOfStudy === yearOfStudy),
+    ) ?? subject.placements[0]
+
+    navigate(papersListPath({
+      studiesId: placement?.studiesId,
+      majorId: placement?.majorId,
+      yearOfStudy: placement?.yearOfStudy,
+      subjectId: subject.id,
+    }))
+  }
 
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: catalogueKeys.all })
@@ -132,6 +174,12 @@ export function CataloguePage() {
         <ActionMenu
           label={t('catalogue.openSubjectActions', { subject: localizedName(subject, language) })}
           items={[
+            {
+              key: 'papers',
+              label: t('catalogue.viewPapers'),
+              icon: <FileText className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />,
+              onSelect: () => openSubjectPapers(subject),
+            },
             {
               key: 'edit',
               label: t('catalogue.editSubject'),
@@ -204,6 +252,12 @@ export function CataloguePage() {
           label={t('catalogue.openSubjectActions', { subject: localizedName(subject, language) })}
           items={[
             {
+              key: 'papers',
+              label: t('catalogue.viewPapers'),
+              icon: <FileText className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />,
+              onSelect: () => openCatalogueSubjectPapers(subject),
+            },
+            {
               key: 'edit',
               label: t('catalogue.editSubjectIdentity'),
               onSelect: () => setSubjectEditor({
@@ -250,15 +304,17 @@ export function CataloguePage() {
         />
       ) : (
         <>
-          <div className="grid gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-2">
+          <div className="grid gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-3">
             <div className="flex items-end gap-2">
               <div className="min-w-0 flex-1">
                 <Field label={t('papers.studyProgram')}>
                   <Select
                     value={effectiveStudyId || ''}
                     onChange={(event) => {
-                      setStudyId(event.target.value)
-                      setMajorId('')
+                      setCatalogueParams((next) => {
+                        ;['studiesId', 'majorId', 'yearOfStudy', 'page'].forEach((key) => next.delete(key))
+                        if (event.target.value) next.set('studiesId', event.target.value)
+                      })
                     }}
                   >
                     {studies.data.data.length === 0 && <option value="">{t('catalogue.noStudies')}</option>}
@@ -286,8 +342,9 @@ export function CataloguePage() {
                         t('catalogue.deleteStudyConfirm', { study: localizedName(selectedStudy, language) }),
                         async () => {
                           await deleteStudy(selectedStudy.id)
-                          setStudyId('')
-                          setMajorId('')
+                          setCatalogueParams((next) => {
+                            ;['studiesId', 'majorId', 'yearOfStudy', 'page'].forEach((key) => next.delete(key))
+                          })
                         },
                       ),
                     },
@@ -302,7 +359,14 @@ export function CataloguePage() {
                   <Select
                     value={effectiveMajorId || ''}
                     disabled={!selectedStudy || majors.isPending}
-                    onChange={(event) => setMajorId(event.target.value)}
+                    onChange={(event) => {
+                      setCatalogueParams((next) => {
+                        next.delete('page')
+                        if (effectiveStudyId) next.set('studiesId', String(effectiveStudyId))
+                        if (event.target.value) next.set('majorId', event.target.value)
+                        else next.delete('majorId')
+                      })
+                    }}
                   >
                     {(majors.data?.data.length ?? 0) === 0 && <option value="">{t('catalogue.noMajors')}</option>}
                     {majors.data?.data.map((major) => (
@@ -334,7 +398,10 @@ export function CataloguePage() {
                         t('catalogue.deleteMajorConfirm', { major: localizedName(selectedMajor, language) }),
                         async () => {
                           await deleteMajor(selectedMajor.id)
-                          setMajorId('')
+                          setCatalogueParams((next) => {
+                            next.delete('majorId')
+                            next.delete('page')
+                          })
                         },
                       ),
                     },
@@ -342,6 +409,29 @@ export function CataloguePage() {
                 />
               )}
             </div>
+
+            <Field label={t('papers.yearOfStudy')}>
+              <Select
+                value={yearOfStudy ?? ''}
+                disabled={!selectedMajor}
+                onChange={(event) => {
+                  setCatalogueParams((next) => {
+                    next.delete('page')
+                    if (effectiveStudyId) next.set('studiesId', String(effectiveStudyId))
+                    if (effectiveMajorId) next.set('majorId', String(effectiveMajorId))
+                    if (event.target.value) next.set('yearOfStudy', event.target.value)
+                    else next.delete('yearOfStudy')
+                  })
+                }}
+              >
+                <option value="">{t('papers.allYears')}</option>
+                {studyYears.map((year) => (
+                  <option key={year} value={year}>
+                    {t('common.studyYear', { year })}
+                  </option>
+                ))}
+              </Select>
+            </Field>
           </div>
 
           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
@@ -349,14 +439,25 @@ export function CataloguePage() {
               <Button
                 variant={view === 'major' ? 'primary' : 'ghost'}
                 className="min-h-8 px-3 py-1"
-                onClick={() => setView('major')}
+                onClick={() => {
+                  setCatalogueParams((next) => {
+                    next.delete('view')
+                    next.delete('page')
+                    next.delete('q')
+                  })
+                }}
               >
                 {t('catalogue.currentMajor')}
               </Button>
               <Button
                 variant={view === 'all' ? 'primary' : 'ghost'}
                 className="min-h-8 px-3 py-1"
-                onClick={() => setView('all')}
+                onClick={() => {
+                  setCatalogueParams((next) => {
+                    next.set('view', 'all')
+                    next.delete('page')
+                  })
+                }}
               >
                 {t('catalogue.allSubjects')}
               </Button>
@@ -386,10 +487,15 @@ export function CataloguePage() {
                 message={subjects.error instanceof ApiError ? subjects.error.message : t('catalogue.loadError')}
                 onRetry={() => subjects.refetch()}
               />
-            ) : subjects.data.data.length === 0 ? (
+            ) : visibleSubjects.length === 0 ? (
               <EmptyState title={t('catalogue.noSubjectsTitle')} description={t('catalogue.noSubjectsDescription')} />
             ) : (
-              <DataTable columns={subjectColumns} rows={subjects.data.data} getRowKey={(subject) => subject.id} />
+              <DataTable
+                columns={subjectColumns}
+                rows={visibleSubjects}
+                getRowKey={(subject) => subject.id}
+                onRowClick={openSubjectPapers}
+              />
             )
           ) : (
             <div className="space-y-4">
@@ -400,8 +506,11 @@ export function CataloguePage() {
                   value={search}
                   placeholder={t('catalogue.searchPlaceholder')}
                   onChange={(event) => {
-                    setSearch(event.target.value)
-                    setCataloguePage(1)
+                    setCatalogueParams((next) => {
+                      next.delete('page')
+                      if (event.target.value) next.set('q', event.target.value)
+                      else next.delete('q')
+                    })
                   }}
                 />
               </div>
@@ -416,12 +525,22 @@ export function CataloguePage() {
                 <EmptyState title={t('catalogue.noSubjectsTitle')} description={t('catalogue.noSubjectsDescription')} />
               ) : (
                 <>
-                  <DataTable columns={catalogueColumns} rows={allSubjects.data.data} getRowKey={(subject) => subject.id} />
+                  <DataTable
+                    columns={catalogueColumns}
+                    rows={allSubjects.data.data}
+                    getRowKey={(subject) => subject.id}
+                    onRowClick={openCatalogueSubjectPapers}
+                  />
                   <Pagination
                     page={allSubjects.data.meta.page}
                     totalPages={allSubjects.data.meta.totalPages}
                     totalItems={allSubjects.data.meta.totalItems}
-                    onChange={setCataloguePage}
+                    onChange={(page) => {
+                      setCatalogueParams((next) => {
+                        if (page > 1) next.set('page', String(page))
+                        else next.delete('page')
+                      })
+                    }}
                   />
                 </>
               )}
@@ -436,8 +555,10 @@ export function CataloguePage() {
           onClose={() => setStudyEditor(null)}
           onSaved={async (saved) => {
             await refresh()
-            setStudyId(String(saved.id))
-            setMajorId('')
+            setCatalogueParams((next) => {
+              next.set('studiesId', String(saved.id))
+              ;['majorId', 'yearOfStudy', 'page'].forEach((key) => next.delete(key))
+            })
             setStudyEditor(null)
           }}
         />
@@ -450,8 +571,11 @@ export function CataloguePage() {
           onClose={() => setMajorEditor(null)}
           onSaved={async (saved) => {
             await refresh()
-            setStudyId(String(saved.studiesId))
-            setMajorId(String(saved.id))
+            setCatalogueParams((next) => {
+              next.set('studiesId', String(saved.studiesId))
+              next.set('majorId', String(saved.id))
+              next.delete('page')
+            })
             setMajorEditor(null)
           }}
         />

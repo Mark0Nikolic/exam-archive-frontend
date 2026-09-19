@@ -15,9 +15,9 @@ export async function getMajors(studiesId?: number) {
   return data
 }
 
-export async function getSubjects(majorId: number) {
+export async function getSubjects(majorId: number, yearOfStudy?: number) {
   const { data } = await api.get<PaginatedResponse<Subject>>('/api/subjects', {
-    params: { majorId, page: 1, perPage: 100 },
+    params: { majorId, yearOfStudy, page: 1, perPage: 100 },
   })
   return data
 }

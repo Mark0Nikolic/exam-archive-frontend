@@ -15,7 +15,8 @@ export const catalogueKeys = {
   all: ['lookups'] as const,
   studies: ['lookups', 'studies'] as const,
   majors: (studiesId?: number) => ['lookups', 'majors', studiesId] as const,
-  subjects: (majorId: number) => ['lookups', 'subjects', majorId] as const,
+  subjects: (majorId: number, yearOfStudy?: number) =>
+    ['lookups', 'subjects', majorId, yearOfStudy] as const,
   subjectCatalogue: (search: string, page: number) =>
     ['lookups', 'subject-catalogue', search, page] as const,
 }

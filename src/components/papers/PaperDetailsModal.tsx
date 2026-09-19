@@ -127,8 +127,7 @@ export function PaperDetailsModal({
   return (
     <Modal
       open={paperId !== null}
-      title={t('details.title')}
-      description={t('details.description')}
+      ariaLabel={t('details.title')}
       onClose={onClose}
       width="max-w-6xl"
     >

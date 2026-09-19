@@ -86,8 +86,8 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
     staleTime: 30 * 60 * 1000,
   })
   const subjects = useQuery({
-    queryKey: ['lookups', 'subjects', form.majorId],
-    queryFn: () => getSubjects(Number(form.majorId)),
+    queryKey: ['lookups', 'subjects', form.majorId, form.yearOfStudy],
+    queryFn: () => getSubjects(Number(form.majorId), form.yearOfStudy ? Number(form.yearOfStudy) : undefined),
     enabled: open && Boolean(form.majorId),
     staleTime: 30 * 60 * 1000,
   })

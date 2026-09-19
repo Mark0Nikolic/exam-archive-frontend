@@ -200,6 +200,11 @@ export function PendingPapersPage() {
             onPreview={() => setSelectedPaperId(paper.id)}
             onEdit={() => setEditPaperId(paper.id)}
             onError={setActionError}
+            onDeleted={(id) => {
+              setSelectedPaperId((current) => (current === id ? null : current))
+              setEditPaperId((current) => (current === id ? null : current))
+              setPaperToReject((current) => (current?.id === id ? null : current))
+            }}
           />
         </div>
       ),

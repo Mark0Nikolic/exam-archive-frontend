@@ -78,6 +78,21 @@ export function localizedPaperSubject(paper: Pick<Paper, 'subjectNameEn' | 'subj
   return localizedName({ nameEn: paper.subjectNameEn, nameSr: paper.subjectNameSr }, language)
 }
 
+export function papersListPath(query: {
+  studiesId?: number
+  majorId?: number
+  yearOfStudy?: number
+  subjectId?: number
+}) {
+  const search = new URLSearchParams()
+  if (query.studiesId) search.set('studiesId', String(query.studiesId))
+  if (query.majorId) search.set('majorId', String(query.majorId))
+  if (query.yearOfStudy) search.set('yearOfStudy', String(query.yearOfStudy))
+  if (query.subjectId) search.set('subjectId', String(query.subjectId))
+  const queryString = search.toString()
+  return queryString ? `/papers?${queryString}` : '/papers'
+}
+
 export function compareLocalizedNames(
   first: { nameEn: string | null; nameSr: string },
   second: { nameEn: string | null; nameSr: string },

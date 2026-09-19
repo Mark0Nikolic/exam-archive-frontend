@@ -94,3 +94,7 @@ export async function updatePaperMetadata({ id, ...input }: UpdatePaperMetadataI
   const { data } = await api.patch<PaperDetail>(`/api/papers/${id}`, input)
   return data
 }
+
+export async function deletePaper(id: number) {
+  await api.delete(`/api/papers/${id}`)
+}

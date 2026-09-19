@@ -81,8 +81,8 @@ export function PapersPage() {
     staleTime: 30 * 60 * 1000,
   })
   const subjects = useQuery({
-    queryKey: ['lookups', 'subjects', filters.majorId],
-    queryFn: () => getSubjects(filters.majorId as number),
+    queryKey: ['lookups', 'subjects', filters.majorId, filters.yearOfStudy],
+    queryFn: () => getSubjects(filters.majorId as number, filters.yearOfStudy),
     enabled: Boolean(filters.majorId),
     staleTime: 30 * 60 * 1000,
   })
@@ -138,6 +138,10 @@ export function PapersPage() {
           onPreview={() => setSelectedPaperId(paper.id)}
           onEdit={() => setEditPaperId(paper.id)}
           onError={setActionError}
+          onDeleted={(id) => {
+            setSelectedPaperId((current) => (current === id ? null : current))
+            setEditPaperId((current) => (current === id ? null : current))
+          }}
         />
       ),
     },
