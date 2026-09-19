@@ -11,6 +11,7 @@ import { compareLocalizedNames, fieldError, formatBytes, localizedName, monthNam
 import { getMajors, getStudies, getSubjects } from '../../services/lookups'
 import { paperKeys, uploadPaper } from '../../services/papers'
 import { Button, Field, FileDropZone, Input, Modal, Select } from '../ui'
+import { PaperQuestionsPanel } from './PaperQuestionsPanel'
 
 interface FormState {
   studyId: string
@@ -41,7 +42,7 @@ function validate(form: FormState, t: TFunction) {
   const pdfCount = form.files.filter(
     (file) => file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'),
   ).length
-  const allowed = /\.(pdf|jpe?g|png|webp)$/i
+  const allowed = /\.(pdf|docx|jpe?g|png|webp)$/i
 
   if (!form.studyId) errors.studyId = t('upload.validation.studyRequired')
   if (!form.majorId) errors.majorId = t('upload.validation.majorRequired')
@@ -193,6 +194,9 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
               <p className="mt-2 text-xs text-amber-800">{t('upload.claimDescription')}</p>
             </div>
           )}
+          {result.status === 'Approved' && (
+            <PaperQuestionsPanel paperId={result.id} enabled />
+          )}
           <div className="flex justify-end">
             <Button onClick={close}>{t('common.done')}</Button>
           </div>
@@ -306,7 +310,7 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
               <div className="mt-1.5">
                 <FileDropZone
                   multiple
-                  accept=".pdf,.jpg,.jpeg,.png,.webp"
+                  accept=".pdf,.docx,.jpg,.jpeg,.png,.webp"
                   disabled={mutation.isPending}
                   label={t('upload.dropLabel')}
                   onFiles={(files) => update('files', files)}

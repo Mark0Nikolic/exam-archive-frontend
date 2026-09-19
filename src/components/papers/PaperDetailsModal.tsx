@@ -10,11 +10,13 @@ import {
   approvePaper,
   downloadPaper,
   getPaper,
+  isUnavailablePdf,
   paperKeys,
   previewPaper,
   rejectPaper,
 } from '../../services/papers'
 import { Button, ErrorState, Field, LoadingState, Modal, StatusBadge, Textarea } from '../ui'
+import { PaperQuestionsPanel } from './PaperQuestionsPanel'
 
 export function PaperDetailsModal({
   paperId,
@@ -67,9 +69,9 @@ export function PaperDetailsModal({
 
   const approve = useMutation({
     mutationFn: approvePaper,
-    onSuccess: async () => {
+    onSuccess: async (paper) => {
+      queryClient.setQueryData(paperKeys.detail(paper.id), paper)
       await queryClient.invalidateQueries({ queryKey: paperKeys.all })
-      onClose()
     },
     onError: (error) =>
       setActionError(error instanceof ApiError ? error.message : t('pending.approveError')),
@@ -100,7 +102,11 @@ export function PaperDetailsModal({
       window.setTimeout(() => URL.revokeObjectURL(url), 0)
     },
     onError: (error) =>
-      setFileError(error instanceof ApiError ? error.message : t('details.downloadError')),
+      setFileError(
+        isUnavailablePdf(error)
+          ? t('details.downloadWordOnly')
+          : error instanceof ApiError ? error.message : t('details.downloadError'),
+      ),
   })
 
   const files = query.data
@@ -110,7 +116,9 @@ export function PaperDetailsModal({
     : []
 
   const canReview = isStaff(user?.role) && query.data?.status === 'Pending'
+  const canShowQuestions = isStaff(user?.role) && query.data?.status === 'Approved'
   const isBusy = approve.isPending || reject.isPending
+  const previewIsWordOnly = preview.isError && isUnavailablePdf(preview.error)
 
   const submitReject = () => {
     if (!query.data) return
@@ -173,6 +181,8 @@ export function PaperDetailsModal({
               <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
                 {preview.isPending ? (
                   <LoadingState label={t('details.previewLoading')} />
+                ) : previewIsWordOnly ? (
+                  <p className="p-4 text-sm text-slate-600">{t('details.previewWordOnly')}</p>
                 ) : preview.isError ? (
                   <div className="p-4">
                     <ErrorState
@@ -232,6 +242,9 @@ export function PaperDetailsModal({
                 ))}
               </div>
             </div>
+            {canShowQuestions && paperId !== null && (
+              <PaperQuestionsPanel paperId={paperId} enabled />
+            )}
             {query.data.rejectionReason && (
               <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
                 <p className="text-sm font-bold text-rose-800">{t('details.rejectionReason')}</p>

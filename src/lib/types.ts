@@ -99,6 +99,9 @@ export type ExamType = (typeof EXAM_TYPES)[number]
 export const PAPER_STATUSES = ['Pending', 'Rejected', 'Approved'] as const
 export type PaperStatus = (typeof PAPER_STATUSES)[number]
 
+export const PARSE_STATUSES = ['NotQueued', 'Queued', 'Parsed', 'Skipped', 'Failed'] as const
+export type ParseStatus = (typeof PARSE_STATUSES)[number]
+
 export interface Paper {
   id: number
   subjectId: number
@@ -113,6 +116,8 @@ export interface Paper {
   reviewedAt: string | null
   rejectionReason: string | null
   isOwnedByCurrentUser?: boolean
+  parseStatus?: ParseStatus
+  questionCount?: number
 }
 
 export interface PaperFile {
@@ -122,7 +127,19 @@ export interface PaperFile {
 }
 
 export interface PaperDetail extends Paper {
-  files: Partial<Record<'pdf' | 'jpg' | 'png' | 'webp', PaperFile[]>>
+  files: Partial<Record<'pdf' | 'jpg' | 'png' | 'webp' | 'docx', PaperFile[]>>
+}
+
+export interface PaperQuestion {
+  ordinal?: number
+  label: string
+  text: string
+}
+
+export interface PaperQuestions {
+  parseStatus: ParseStatus
+  parseError?: string | null
+  questions: PaperQuestion[]
 }
 
 export interface UploadedPaper {

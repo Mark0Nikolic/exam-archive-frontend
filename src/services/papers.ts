@@ -1,10 +1,12 @@
-import { api } from '../lib/axios'
+import { api, ApiError } from '../lib/axios'
 import type {
   PaginatedResponse,
   Paper,
   PaperDetail,
   PaperPdf,
   PaperQuery,
+  PaperQuestion,
+  PaperQuestions,
   UpdatePaperMetadataInput,
   UploadedPaper,
   UploadPaperInput,
@@ -15,6 +17,11 @@ export const paperKeys = {
   list: (query: PaperQuery) => [...paperKeys.all, 'list', query] as const,
   detail: (id: number) => [...paperKeys.all, 'detail', id] as const,
   preview: (id: number) => [...paperKeys.all, 'preview', id] as const,
+  questions: (id: number) => [...paperKeys.all, 'questions', id] as const,
+}
+
+export function isUnavailablePdf(error: unknown) {
+  return error instanceof ApiError && error.status === 409
 }
 
 export async function getPapers(query: PaperQuery) {
@@ -68,17 +75,53 @@ function fileNameFromDisposition(disposition: string | undefined, fallback: stri
 }
 
 async function getPaperPdf(id: number, action: 'preview' | 'download'): Promise<PaperPdf> {
-  const response = await api.get<Blob>(`/api/papers/${id}/${action}`, {
-    responseType: 'blob',
-    headers: { Accept: 'application/pdf' },
-  })
+  const accept = action === 'preview'
+    ? 'application/pdf'
+    : 'application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,*/*'
+  const fallback = action === 'preview' ? `exam-paper-${id}.pdf` : `exam-paper-${id}`
+
+  try {
+    const response = await api.get<Blob>(`/api/papers/${id}/${action}`, {
+      responseType: 'blob',
+      headers: { Accept: accept },
+    })
+
+    return {
+      blob: response.data,
+      fileName: fileNameFromDisposition(response.headers['content-disposition'], fallback),
+    }
+  } catch (error) {
+    if (action === 'download' && isUnavailablePdf(error)) {
+      const response = await api.get<Blob>(`/api/papers/${id}/download`, {
+        responseType: 'blob',
+        headers: {
+          Accept: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document,*/*',
+        },
+      })
+
+      return {
+        blob: response.data,
+        fileName: fileNameFromDisposition(
+          response.headers['content-disposition'],
+          `exam-paper-${id}.docx`,
+        ),
+      }
+    }
+
+    throw error
+  }
+}
+
+export async function getPaperQuestions(id: number) {
+  const { data } = await api.get<PaperQuestions | PaperQuestion[]>(`/api/papers/${id}/questions`)
+  if (Array.isArray(data)) {
+    return { parseStatus: 'Parsed' as const, parseError: null, questions: data }
+  }
 
   return {
-    blob: response.data,
-    fileName: fileNameFromDisposition(
-      response.headers['content-disposition'],
-      `exam-paper-${id}.pdf`,
-    ),
+    parseStatus: data.parseStatus,
+    parseError: data.parseError ?? null,
+    questions: data.questions ?? [],
   }
 }
 
