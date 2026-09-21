@@ -310,7 +310,11 @@ export function PapersPage() {
       )}
 
       <UploadPaperModal open={uploadOpen} onClose={() => setUploadOpen(false)} />
-      <PaperDetailsModal paperId={selectedPaperId} onClose={() => setSelectedPaperId(null)} />
+      <PaperDetailsModal
+        paperId={selectedPaperId}
+        onClose={() => setSelectedPaperId(null)}
+        onOpenPaper={setSelectedPaperId}
+      />
       <EditPaperModal paperId={editPaperId} onClose={() => setEditPaperId(null)} />
     </div>
   )

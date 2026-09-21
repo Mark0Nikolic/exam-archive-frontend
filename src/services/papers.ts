@@ -1,13 +1,14 @@
 import { api, ApiError } from '../lib/axios'
 import type {
+  MergePaperQuestionsInput,
   PaginatedResponse,
   Paper,
   PaperDetail,
   PaperPdf,
   PaperQuery,
-  PaperQuestion,
   PaperQuestions,
   UpdatePaperMetadataInput,
+  UpdatePaperQuestionInput,
   UploadedPaper,
   UploadPaperInput,
 } from '../lib/types'
@@ -113,9 +114,28 @@ async function getPaperPdf(id: number, action: 'preview' | 'download'): Promise<
 }
 
 export async function getPaperQuestions(id: number) {
-  const { data } = await api.get<PaperQuestions | PaperQuestion[]>(`/api/papers/${id}/questions`)
-  if (Array.isArray(data)) return data
-  return data.questions ?? []
+  const { data } = await api.get<PaperQuestions>(`/api/papers/${id}/questions`)
+  return data
+}
+
+export async function updatePaperQuestion({ id, ordinal, ...input }: UpdatePaperQuestionInput) {
+  const { data } = await api.patch<PaperQuestions>(`/api/papers/${id}/questions/${ordinal}`, input)
+  return data
+}
+
+export async function deletePaperQuestion({ id, ordinal }: { id: number; ordinal: number }) {
+  const { data } = await api.delete<PaperQuestions>(`/api/papers/${id}/questions/${ordinal}`)
+  return data
+}
+
+export async function mergePaperQuestions({ id, ordinals }: MergePaperQuestionsInput) {
+  const { data } = await api.post<PaperQuestions>(`/api/papers/${id}/questions/merge`, { ordinals })
+  return data
+}
+
+export async function reparsePaper(id: number) {
+  const { data } = await api.post<PaperDetail>(`/api/papers/${id}/reparse`)
+  return data
 }
 
 export function previewPaper(id: number) {

@@ -279,7 +279,11 @@ export function PendingPapersPage() {
         </>
       )}
 
-      <PaperDetailsModal paperId={selectedPaperId} onClose={() => setSelectedPaperId(null)} />
+      <PaperDetailsModal
+        paperId={selectedPaperId}
+        onClose={() => setSelectedPaperId(null)}
+        onOpenPaper={setSelectedPaperId}
+      />
       <EditPaperModal paperId={editPaperId} onClose={() => setEditPaperId(null)} />
       <RejectModal paper={paperToReject} onClose={() => setPaperToReject(null)} />
     </div>

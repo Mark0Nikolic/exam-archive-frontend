@@ -21,9 +21,11 @@ import { PaperQuestionsPanel } from './PaperQuestionsPanel'
 export function PaperDetailsModal({
   paperId,
   onClose,
+  onOpenPaper,
 }: {
   paperId: number | null
   onClose: () => void
+  onOpenPaper?: (id: number) => void
 }) {
   const { t, i18n } = useTranslation()
   const { user } = useAuth()
@@ -47,8 +49,7 @@ export function PaperDetailsModal({
     queryFn: () => getPaper(paperId as number),
     enabled: paperId !== null,
     refetchInterval: (current) =>
-      isStaff(user?.role)
-      && current.state.data?.status === 'Approved'
+      current.state.data?.status === 'Approved'
       && current.state.data.parseStatus === 'Queued'
         ? 2000
         : false,
@@ -123,7 +124,7 @@ export function PaperDetailsModal({
   const totalSize = files.reduce((sum, file) => sum + file.sizeBytes, 0)
 
   const canReview = isStaff(user?.role) && query.data?.status === 'Pending'
-  const canShowQuestions = isStaff(user?.role) && query.data?.status === 'Approved'
+  const canShowQuestions = query.data?.status === 'Approved'
   const isBusy = approve.isPending || reject.isPending
   const previewIsWordOnly = preview.isError && isUnavailablePdf(preview.error)
 
@@ -242,6 +243,7 @@ export function PaperDetailsModal({
                   parseStatus={query.data.parseStatus}
                   parseError={query.data.parseError}
                   questionCount={query.data.questionCount}
+                  onOpenPaper={onOpenPaper}
                   enabled
                 />
               )}

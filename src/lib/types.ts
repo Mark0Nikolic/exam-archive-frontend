@@ -131,16 +131,41 @@ export interface PaperDetail extends Paper {
   parseError?: string | null
 }
 
+export interface QuestionAppearance {
+  paperId: number
+  examType: ExamType
+  month: number
+  year: number
+  ordinal: number
+  label: string
+}
+
 export interface PaperQuestion {
-  ordinal?: number
+  questionId: number
+  ordinal: number
   label: string
   text: string
+  appearances: QuestionAppearance[]
+  appearedRecently: boolean
 }
 
 export interface PaperQuestions {
+  paperId: number
   parseStatus: ParseStatus
   parseError?: string | null
   questions: PaperQuestion[]
+}
+
+export interface UpdatePaperQuestionInput {
+  id: number
+  ordinal: number
+  label?: string
+  text?: string
+}
+
+export interface MergePaperQuestionsInput {
+  id: number
+  ordinals: number[]
 }
 
 export interface UploadedPaper {

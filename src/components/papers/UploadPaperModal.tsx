@@ -39,10 +39,16 @@ function validate(form: FormState, t: TFunction) {
   const errors: Record<string, string> = {}
   const year = Number(form.year)
   const totalSize = form.files.reduce((sum, file) => sum + file.size, 0)
-  const pdfCount = form.files.filter(
-    (file) => file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'),
-  ).length
-  const allowed = /\.(pdf|docx|jpe?g|png|webp)$/i
+  const documentCount = form.files.filter((file) => {
+    const name = file.name.toLowerCase()
+    return (
+      name.endsWith('.pdf')
+      || name.endsWith('.docx')
+      || file.type === 'application/pdf'
+      || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    )
+  }).length
+  const allowed = /\.(pdf|docx)$/i
 
   if (!form.studyId) errors.studyId = t('upload.validation.studyRequired')
   if (!form.majorId) errors.majorId = t('upload.validation.majorRequired')
@@ -53,7 +59,7 @@ function validate(form: FormState, t: TFunction) {
   }
   if (form.files.length === 0) errors.files = t('upload.validation.filesRequired')
   else if (form.files.length > 10) errors.files = t('upload.validation.tooManyFiles')
-  else if (pdfCount > 2) errors.files = t('upload.validation.tooManyPdfs')
+  else if (documentCount > 2) errors.files = t('upload.validation.tooManyPdfs')
   else if (form.files.some((file) => !allowed.test(file.name))) {
     errors.files = t('upload.validation.unsupportedFile')
   } else if (form.files.some((file) => file.size > 20 * 1024 * 1024)) {
@@ -325,7 +331,7 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
               <div className="mt-1.5">
                 <FileDropZone
                   multiple
-                  accept=".pdf,.docx,.jpg,.jpeg,.png,.webp"
+                  accept=".pdf,.docx"
                   disabled={mutation.isPending}
                   label={t('upload.dropLabel')}
                   onFiles={(files) => update('files', files)}
