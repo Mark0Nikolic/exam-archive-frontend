@@ -1,13 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowDown, ArrowUp, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, FileText, X } from 'lucide-react'
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { toAppLanguage } from '../../i18n'
+import type { AppLanguage } from '../../i18n'
 import { ApiError } from '../../lib/axios'
 import { EXAM_TYPES } from '../../lib/types'
 import type { ExamType } from '../../lib/types'
-import { compareLocalizedNames, fieldError, formatBytes, localizedName, monthNames, yearsOfStudyForStudy } from '../../lib/utils'
+import { cn, compareLocalizedNames, fieldError, formatBytes, localizedName, monthNames, yearsOfStudyForStudy } from '../../lib/utils'
 import { getMajors, getStudies, getSubjects } from '../../services/lookups'
 import { getPaper, paperKeys, uploadPaper } from '../../services/papers'
 import { Button, Field, FileDropZone, Input, Modal, Select } from '../ui'
@@ -24,6 +25,8 @@ interface FormState {
   files: File[]
 }
 
+const ALLOWED_UPLOAD = /\.(pdf|docx)$/i
+
 const initialState = (): FormState => ({
   studyId: '',
   majorId: '',
@@ -34,6 +37,129 @@ const initialState = (): FormState => ({
   year: String(new Date().getFullYear()),
   files: [],
 })
+
+function isPdfFile(file: File) {
+  return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+}
+
+function UploadFilePreview({ file }: { file: File | null }) {
+  const { t } = useTranslation()
+  const pdf = file ? isPdfFile(file) : false
+  const previewUrl = useMemo(() => (pdf && file ? URL.createObjectURL(file) : ''), [file, pdf])
+
+  useEffect(
+    () => () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl)
+    },
+    [previewUrl],
+  )
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+      {pdf && previewUrl ? (
+        <iframe
+          src={previewUrl}
+          title={t('upload.filePreview', { name: file!.name })}
+          className="h-[58vh] min-h-[420px] w-full bg-white"
+        />
+      ) : (
+        <div className="grid h-[58vh] min-h-[420px] place-items-center p-6 text-center">
+          {file ? (
+            <div>
+              <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-indigo-50 text-indigo-700">
+                <FileText className="h-7 w-7" strokeWidth={1.8} aria-hidden="true" />
+              </span>
+              <p className="mt-3 text-sm font-semibold text-slate-800">{file.name}</p>
+              <p className="mt-1 text-sm text-slate-500">{t('upload.previewWordOnly')}</p>
+            </div>
+          ) : (
+            <p className="max-w-xs text-sm text-slate-500">{t('upload.previewEmpty')}</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function QueuedFileRow({
+  file,
+  index,
+  total,
+  language,
+  selected,
+  disabled,
+  onSelect,
+  onMove,
+  onRemove,
+}: {
+  file: File
+  index: number
+  total: number
+  language: AppLanguage
+  selected: boolean
+  disabled: boolean
+  onSelect: () => void
+  onMove: (direction: -1 | 1) => void
+  onRemove: () => void
+}) {
+  const { t } = useTranslation()
+  const pdf = isPdfFile(file)
+
+  return (
+    <li
+      className={cn(
+        'flex items-center gap-3 px-3 py-2.5',
+        selected && 'bg-indigo-50',
+      )}
+    >
+      <button
+        type="button"
+        className="flex min-w-0 flex-1 items-center gap-3 text-left"
+        onClick={onSelect}
+      >
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white text-xs font-bold text-slate-600 ring-1 ring-slate-200">
+          {index + 1}
+        </span>
+        {!pdf && (
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-indigo-50 text-indigo-700">
+            <FileText className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
+          </span>
+        )}
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium text-slate-700">{file.name}</span>
+          <span className="text-xs text-slate-400">{formatBytes(file.size, language)}</span>
+        </span>
+      </button>
+      <button
+        type="button"
+        aria-label={t('upload.moveUp', { name: file.name })}
+        disabled={disabled || index === 0}
+        className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+        onClick={() => onMove(-1)}
+      >
+        <ArrowUp className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        aria-label={t('upload.moveDown', { name: file.name })}
+        disabled={disabled || index === total - 1}
+        className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+        onClick={() => onMove(1)}
+      >
+        <ArrowDown className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        aria-label={t('upload.removeFile', { name: file.name })}
+        disabled={disabled}
+        className="rounded p-1 text-rose-600 hover:bg-rose-50 disabled:opacity-30"
+        onClick={onRemove}
+      >
+        <X className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
+      </button>
+    </li>
+  )
+}
 
 function validate(form: FormState, t: TFunction) {
   const errors: Record<string, string> = {}
@@ -48,7 +174,7 @@ function validate(form: FormState, t: TFunction) {
       || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     )
   }).length
-  const allowed = /\.(pdf|docx)$/i
+  const allowed = ALLOWED_UPLOAD
 
   if (!form.studyId) errors.studyId = t('upload.validation.studyRequired')
   if (!form.majorId) errors.majorId = t('upload.validation.majorRequired')
@@ -79,6 +205,7 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
   const [form, setForm] = useState<FormState>(initialState)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [generalError, setGeneralError] = useState('')
+  const [selectedIndex, setSelectedIndex] = useState(0)
 
   const studies = useQuery({
     queryKey: ['lookups', 'studies'],
@@ -115,6 +242,7 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
     setForm(initialState())
     setErrors({})
     setGeneralError('')
+    setSelectedIndex(0)
     mutation.reset()
     onClose()
   }
@@ -122,6 +250,23 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((current) => ({ ...current, [key]: value }))
     setErrors((current) => ({ ...current, [key]: '' }))
+  }
+
+  const addFiles = (incoming: File[]) => {
+    const allowed = incoming.filter((file) => ALLOWED_UPLOAD.test(file.name))
+    const rejected = incoming.filter((file) => !ALLOWED_UPLOAD.test(file.name))
+
+    if (allowed.length > 0) {
+      setSelectedIndex(form.files.length + allowed.length - 1)
+      setForm((current) => ({ ...current, files: [...current.files, ...allowed] }))
+    }
+
+    setErrors((current) => ({
+      ...current,
+      files: rejected.length > 0
+        ? t('upload.validation.unsupportedFileNamed', { name: rejected[0].name })
+        : '',
+    }))
   }
 
   const submit = async (event: React.FormEvent) => {
@@ -164,6 +309,18 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
     const files = [...form.files]
     ;[files[index], files[destination]] = [files[destination], files[index]]
     update('files', files)
+    if (selectedIndex === index) setSelectedIndex(destination)
+    else if (selectedIndex === destination) setSelectedIndex(index)
+  }
+
+  const removeFile = (index: number) => {
+    const files = form.files.filter((_, fileIndex) => fileIndex !== index)
+    update('files', files)
+    setSelectedIndex((current) => {
+      if (files.length === 0) return 0
+      if (current > index) return current - 1
+      return Math.min(current, files.length - 1)
+    })
   }
 
   const result = mutation.data
@@ -183,7 +340,7 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
       title={result ? t('upload.uploadedTitle') : t('upload.title')}
       description={result ? t('upload.received') : undefined}
       onClose={close}
-      width="max-w-3xl"
+      width="max-w-[92rem]"
     >
       {result ? (
         <div className="space-y-5 p-6">
@@ -224,7 +381,10 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
         </div>
       ) : (
         <form onSubmit={submit}>
-          <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-6">
+          <div className="grid items-start gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)] sm:p-6">
+            <UploadFilePreview file={form.files[selectedIndex] ?? null} />
+            <aside className="space-y-4 lg:max-h-[70vh] lg:overflow-y-auto lg:pr-1">
+              <div className="grid gap-4 sm:grid-cols-2">
             <Field label={t('papers.studyProgram')} error={errors.studyId} required>
               <Select
                 value={form.studyId}
@@ -334,7 +494,7 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
                   accept=".pdf,.docx"
                   disabled={mutation.isPending}
                   label={t('upload.dropLabel')}
-                  onFiles={(files) => update('files', files)}
+                  onFiles={addFiles}
                 />
               </div>
               {errors.files ? (
@@ -347,41 +507,18 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
               {form.files.length > 0 && (
                 <ol className="mt-3 divide-y divide-slate-100 rounded-xl border border-slate-200">
                   {form.files.map((file, index) => (
-                    <li key={`${file.name}-${file.lastModified}-${index}`} className="flex items-center gap-3 px-3 py-2.5">
-                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-slate-100 text-xs font-bold text-slate-600">
-                        {index + 1}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium text-slate-700">{file.name}</span>
-                        <span className="text-xs text-slate-400">{formatBytes(file.size, language)}</span>
-                      </span>
-                      <button
-                        type="button"
-                        aria-label={t('upload.moveUp', { name: file.name })}
-                        disabled={index === 0}
-                        className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
-                        onClick={() => moveFile(index, -1)}
-                      >
-                        <ArrowUp className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={t('upload.moveDown', { name: file.name })}
-                        disabled={index === form.files.length - 1}
-                        className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
-                        onClick={() => moveFile(index, 1)}
-                      >
-                        <ArrowDown className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={t('upload.removeFile', { name: file.name })}
-                        className="rounded p-1 text-rose-600 hover:bg-rose-50"
-                        onClick={() => update('files', form.files.filter((_, fileIndex) => fileIndex !== index))}
-                      >
-                        <X className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
-                      </button>
-                    </li>
+                    <QueuedFileRow
+                      key={`${file.name}-${file.lastModified}-${file.size}-${index}`}
+                      file={file}
+                      index={index}
+                      total={form.files.length}
+                      language={language}
+                      selected={index === selectedIndex}
+                      disabled={mutation.isPending}
+                      onSelect={() => setSelectedIndex(index)}
+                      onMove={(direction) => moveFile(index, direction)}
+                      onRemove={() => removeFile(index)}
+                    />
                   ))}
                 </ol>
               )}
@@ -389,12 +526,17 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
             {generalError && (
               <p className="sm:col-span-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{generalError}</p>
             )}
+              </div>
+            </aside>
           </div>
           <div className="flex justify-end gap-3 border-t border-slate-200 px-5 py-4 sm:px-6">
             <Button variant="secondary" onClick={close}>
               {t('common.cancel')}
             </Button>
-            <Button type="submit" disabled={mutation.isPending}>
+            <Button
+              type="submit"
+              disabled={mutation.isPending || form.files.length === 0 || Boolean(errors.files)}
+            >
               {mutation.isPending ? t('upload.uploading') : t('upload.submit')}
             </Button>
           </div>
