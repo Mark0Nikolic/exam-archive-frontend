@@ -319,6 +319,8 @@ export function Modal({
   children,
   onClose,
   width = 'max-w-2xl',
+  scrollable = true,
+  titleAside,
 }: {
   open: boolean
   title?: string
@@ -327,6 +329,8 @@ export function Modal({
   children: ReactNode
   onClose: () => void
   width?: string
+  scrollable?: boolean
+  titleAside?: ReactNode
 }) {
   const { t } = useTranslation()
   const [rendered, setRendered] = useState(open)
@@ -385,7 +389,8 @@ export function Modal({
         aria-labelledby={title ? 'modal-title' : undefined}
         aria-label={title ? undefined : ariaLabel}
         className={cn(
-          'max-h-[94vh] w-full overflow-y-auto rounded-t-2xl bg-white shadow-2xl transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none sm:rounded-2xl',
+          'max-h-[94vh] w-full rounded-t-2xl bg-white shadow-2xl transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none sm:rounded-2xl',
+          scrollable ? 'overflow-y-auto' : 'flex min-h-0 flex-col overflow-hidden',
           visible
             ? 'translate-y-0 scale-100 opacity-100'
             : 'translate-y-4 scale-100 opacity-0 sm:translate-y-0 sm:scale-[0.98]',
@@ -394,28 +399,35 @@ export function Modal({
       >
         <div
           className={cn(
-            'flex border-b border-slate-200 px-5 sm:px-6',
-            title ? 'items-start justify-between py-4' : 'items-center justify-end py-2',
+            'flex shrink-0 items-center border-b border-slate-200 px-5 sm:px-6',
+            title ? 'justify-between py-3' : 'justify-end py-2',
           )}
         >
           {title ? (
-            <div>
-              <h2 id="modal-title" className="text-lg font-bold text-slate-950">
-                {title}
-              </h2>
+            <div className="min-w-0 pr-3">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <h2 id="modal-title" className="min-w-0 text-lg font-bold leading-6 text-slate-950">
+                  {title}
+                </h2>
+                {titleAside ? <span className="shrink-0">{titleAside}</span> : null}
+              </div>
               {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
             </div>
           ) : null}
           <button
             type="button"
             aria-label={t('common.close')}
-            className="rounded-lg p-2 text-slate-400 hover:bg-accent-wash hover:text-slate-700"
+            className="shrink-0 rounded-lg p-2 text-slate-400 hover:bg-accent-wash hover:text-slate-700"
             onClick={onClose}
           >
             <X className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
           </button>
         </div>
-        {children}
+        {scrollable ? children : (
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:overflow-hidden">
+            {children}
+          </div>
+        )}
       </section>
     </div>
   )

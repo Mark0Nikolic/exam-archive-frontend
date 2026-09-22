@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState, type ButtonHTMLAttributes } from 'react'
+import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Link, Pencil, RefreshCw, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../hooks/useAuth'
 import { toAppLanguage } from '../../i18n'
@@ -16,6 +17,71 @@ import {
   updatePaperQuestion,
 } from '../../services/papers'
 import { Button, ErrorState, Field, Input, LoadingState, Textarea } from '../ui'
+
+function SquareAction({
+  label,
+  children,
+  variant = 'secondary',
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  label: string
+  variant?: 'secondary' | 'danger'
+}) {
+  const anchorRef = useRef<HTMLSpanElement>(null)
+  const tipRef = useRef<HTMLSpanElement>(null)
+  const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState({ top: 0, left: 0 })
+
+  const show = () => {
+    const rect = anchorRef.current?.getBoundingClientRect()
+    if (rect) setPos({ top: Math.max(8, rect.top - 32), left: rect.left })
+    setOpen(true)
+  }
+
+  useLayoutEffect(() => {
+    if (!open || !anchorRef.current || !tipRef.current) return
+    const anchor = anchorRef.current.getBoundingClientRect()
+    const tip = tipRef.current.getBoundingClientRect()
+    const left = Math.max(8, Math.min(anchor.left, window.innerWidth - tip.width - 8))
+    const top = Math.max(8, anchor.top - tip.height - 6)
+    setPos((current) => (
+      Math.abs(current.top - top) < 1 && Math.abs(current.left - left) < 1 ? current : { top, left }
+    ))
+  }, [open, label])
+
+  return (
+    <>
+      <span
+        ref={anchorRef}
+        className="inline-flex"
+        onMouseEnter={show}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={show}
+        onBlur={() => setOpen(false)}
+      >
+        <Button
+          variant={variant}
+          aria-label={label}
+          className="!size-9 !min-h-9 !px-0 !py-0 disabled:!bg-slate-100"
+          {...props}
+        >
+          {children}
+        </Button>
+      </span>
+      {open && createPortal(
+        <span
+          ref={tipRef}
+          role="tooltip"
+          style={{ top: pos.top, left: pos.left }}
+          className="pointer-events-none fixed z-[80] max-w-xs whitespace-normal rounded-md bg-slate-900 px-2 py-1 text-xs font-semibold text-white shadow-lg"
+        >
+          {label}
+        </span>,
+        document.body,
+      )}
+    </>
+  )
+}
 
 function skippedMessage(parseError: string | null | undefined, t: (key: string) => string) {
   if (parseError === 'no-extractable-text') return t('details.questionsSkippedNoText')
@@ -141,7 +207,7 @@ export function PaperQuestionsPanel({
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-sm font-bold text-slate-800">
           {t('details.questions')}
           {status === 'Parsed' && typeof count === 'number' ? (
@@ -149,18 +215,30 @@ export function PaperQuestionsPanel({
           ) : null}
         </h3>
         {staffUser && status !== 'Queued' && (
-          <Button
-            variant="secondary"
-            className="min-h-8 px-3 py-1"
-            disabled={busy}
-            onClick={() => {
-              if (!window.confirm(t('details.reparseConfirm'))) return
-              setActionError('')
-              reparse.mutate()
-            }}
-          >
-            {reparse.isPending ? t('details.reparsing') : t('details.reparse')}
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <SquareAction
+              label={t('details.reparseAgain')}
+              disabled={busy}
+              onClick={() => {
+                if (!window.confirm(t('details.reparseConfirm'))) return
+                setActionError('')
+                reparse.mutate()
+              }}
+            >
+              <RefreshCw className={`h-4 w-4 ${reparse.isPending ? 'animate-spin' : ''}`} aria-hidden="true" />
+            </SquareAction>
+            <SquareAction
+              label={t('details.linkQuestions')}
+              disabled={busy || selectedOrdinals.length < 2}
+              onClick={() => {
+                if (!window.confirm(t('details.mergeQuestionsConfirm'))) return
+                setActionError('')
+                merge.mutate({ id: paperId, ordinals: selectedOrdinals })
+              }}
+            >
+              <Link className="h-4 w-4" aria-hidden="true" />
+            </SquareAction>
+          </div>
         )}
       </div>
       {actionError && (
@@ -198,23 +276,6 @@ export function PaperQuestionsPanel({
           <p className="px-4 py-3 text-sm text-slate-600">{t('details.questionsEmpty')}</p>
         ) : (
           <>
-            {staffUser && (
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-2">
-                <p className="text-xs text-slate-500">{t('details.mergeQuestionsHint')}</p>
-                <Button
-                  variant="secondary"
-                  className="min-h-8 px-3 py-1"
-                  disabled={busy || selectedOrdinals.length < 2}
-                  onClick={() => {
-                    if (!window.confirm(t('details.mergeQuestionsConfirm'))) return
-                    setActionError('')
-                    merge.mutate({ id: paperId, ordinals: selectedOrdinals })
-                  }}
-                >
-                  {merge.isPending ? t('details.mergingQuestions') : t('details.mergeQuestions')}
-                </Button>
-              </div>
-            )}
             <ul className="divide-y divide-slate-100">
               {list.map((question, index) => {
                 const open = openIndexes.includes(index)
@@ -324,18 +385,17 @@ export function PaperQuestionsPanel({
                           </div>
                         )}
                         {staffUser && editingOrdinal !== question.ordinal && (
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              variant="secondary"
-                              className="min-h-8 px-3 py-1"
+                          <div className="flex gap-2">
+                            <SquareAction
+                              label={t('details.editQuestion')}
                               disabled={busy}
                               onClick={() => startEdit(question)}
                             >
-                              {t('details.editQuestion')}
-                            </Button>
-                            <Button
+                              <Pencil className="h-4 w-4" aria-hidden="true" />
+                            </SquareAction>
+                            <SquareAction
+                              label={t('details.deleteQuestion')}
                               variant="danger"
-                              className="min-h-8 px-3 py-1"
                               disabled={busy}
                               onClick={() => {
                                 if (!window.confirm(t('details.deleteQuestionConfirm'))) return
@@ -343,8 +403,8 @@ export function PaperQuestionsPanel({
                                 remove.mutate({ id: paperId, ordinal: question.ordinal })
                               }}
                             >
-                              {remove.isPending ? t('details.deletingQuestion') : t('details.deleteQuestion')}
-                            </Button>
+                              <Trash2 className="h-4 w-4" aria-hidden="true" />
+                            </SquareAction>
                           </div>
                         )}
                       </div>

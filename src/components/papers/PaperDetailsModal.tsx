@@ -147,11 +147,13 @@ export function PaperDetailsModal({
   return (
     <Modal
       open={paperId !== null}
-      ariaLabel={t('details.title')}
+      title={query.data ? localizedPaperSubject(query.data, language) : t('details.title')}
+      titleAside={query.data ? <StatusBadge status={query.data.status} /> : undefined}
       onClose={onClose}
       width="max-w-[92rem]"
+      scrollable={false}
     >
-      <div className="p-5 sm:p-6">
+      <div className="flex min-h-0 flex-1 flex-col p-5 sm:p-6">
         {query.isPending ? (
           <LoadingState label={t('details.loading')} />
         ) : query.isError ? (
@@ -160,8 +162,8 @@ export function PaperDetailsModal({
             onRetry={() => query.refetch()}
           />
         ) : (
-          <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)]">
-            <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+          <div className="grid min-h-0 flex-1 items-stretch gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)]">
+            <div className="min-h-[240px] overflow-hidden rounded-xl border border-slate-200 bg-slate-100 lg:min-h-0">
               {preview.isPending ? (
                 <LoadingState label={t('details.previewLoading')} />
               ) : previewIsWordOnly ? (
@@ -181,7 +183,7 @@ export function PaperDetailsModal({
                   alt={t('details.previewTitle', {
                     subject: localizedPaperSubject(query.data, language),
                   })}
-                  className="mx-auto max-h-[58vh] min-h-[240px] w-full object-contain bg-white"
+                  className="mx-auto h-[58vh] w-full object-contain bg-white lg:h-full"
                 />
               ) : previewUrl ? (
                 <iframe
@@ -189,18 +191,12 @@ export function PaperDetailsModal({
                   title={t('details.previewTitle', {
                     subject: localizedPaperSubject(query.data, language),
                   })}
-                  className="h-[58vh] min-h-[420px] w-full bg-white"
+                  className="h-[58vh] w-full bg-white lg:h-full"
                 />
               ) : null}
             </div>
 
-            <aside className="space-y-4 lg:max-h-[70vh] lg:overflow-y-auto lg:pr-1">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <p className="text-lg font-bold text-slate-950">
-                  {localizedPaperSubject(query.data, language)}
-                </p>
-                <StatusBadge status={query.data.status} />
-              </div>
+            <aside className="min-h-0 space-y-4 overflow-y-auto lg:h-full lg:pr-1">
               <Button
                 variant="secondary"
                 className="min-h-9 w-full px-3 py-1.5"
