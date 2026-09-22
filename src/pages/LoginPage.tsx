@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import academyLogo from '../assets/akademija-logo-white.png'
@@ -17,6 +18,7 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [generalError, setGeneralError] = useState('')
+  const [passwordVisible, setPasswordVisible] = useState(false)
 
   if (user) return <Navigate to="/home" replace />
 
@@ -68,7 +70,7 @@ export function LoginPage() {
       </section>
 
       <section className="flex items-center justify-center p-6 pt-20 sm:p-10 sm:pt-24 lg:pt-10">
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-sm">
           <div className="mb-8 w-fit rounded-2xl bg-slate-950 px-4 py-3 lg:hidden">
             <img
               src={academyLogo}
@@ -93,16 +95,32 @@ export function LoginPage() {
               />
             </Field>
             <Field label={t('auth.password')} error={errors.password} required>
-              <Input
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                placeholder={t('auth.passwordPlaceholder')}
-                onChange={(event) => {
-                  setPassword(event.target.value)
-                  setErrors((current) => ({ ...current, password: '' }))
-                }}
-              />
+              <span className="relative block">
+                <Input
+                  type={passwordVisible ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  value={password}
+                  placeholder={t('auth.passwordPlaceholder')}
+                  className="!pr-11"
+                  onChange={(event) => {
+                    setPassword(event.target.value)
+                    setErrors((current) => ({ ...current, password: '' }))
+                  }}
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 transition hover:bg-accent-wash hover:text-slate-700"
+                  aria-label={passwordVisible ? t('auth.hidePassword') : t('auth.showPassword')}
+                  aria-pressed={passwordVisible}
+                  onClick={() => setPasswordVisible((visible) => !visible)}
+                >
+                  {passwordVisible ? (
+                    <EyeOff className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
+                  ) : (
+                    <Eye className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
+                  )}
+                </button>
+              </span>
             </Field>
             {generalError && (
               <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">

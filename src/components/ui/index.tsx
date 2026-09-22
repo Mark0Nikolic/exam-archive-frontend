@@ -1,13 +1,17 @@
-import { useEffect, useState } from 'react'
-import { ArrowDown, ArrowUp, ChevronsUpDown, LoaderCircle, X } from 'lucide-react'
+import { useEffect, useId, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { ArrowDown, ArrowUp, ChevronDown, ChevronsUpDown, LoaderCircle, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import type {
-  ButtonHTMLAttributes,
-  InputHTMLAttributes,
-  Key,
-  ReactNode,
-  SelectHTMLAttributes,
-  TextareaHTMLAttributes,
+import {
+  Children,
+  isValidElement,
+  type ButtonHTMLAttributes,
+  type ChangeEvent,
+  type InputHTMLAttributes,
+  type Key,
+  type ReactNode,
+  type SelectHTMLAttributes,
+  type TextareaHTMLAttributes,
 } from 'react'
 import { toAppLanguage } from '../../i18n'
 import { cn, localeCode } from '../../lib/utils'
@@ -77,8 +81,220 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
   return <input className={cn(controlClasses, className)} {...props} />
 }
 
-export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select className={cn(controlClasses, className)} {...props} />
+interface SelectOption {
+  value: string
+  label: string
+  disabled: boolean
+}
+
+function optionLabel(children: ReactNode): string {
+  if (typeof children === 'string' || typeof children === 'number') return String(children)
+  if (Array.isArray(children)) return children.map((child) => optionLabel(child)).join('')
+  return ''
+}
+
+function readOptions(children: ReactNode) {
+  const options: SelectOption[] = []
+  Children.forEach(children, (child) => {
+    if (!isValidElement<{ value?: string | number; disabled?: boolean; children?: ReactNode }>(child)) return
+    if (child.type !== 'option') return
+    options.push({
+      value: child.props.value == null ? '' : String(child.props.value),
+      label: optionLabel(child.props.children),
+      disabled: Boolean(child.props.disabled),
+    })
+  })
+  return options
+}
+
+export function Select({
+  className,
+  children,
+  value,
+  disabled,
+  id,
+  required,
+  variant = 'default',
+  'aria-label': ariaLabel,
+  onChange,
+}: SelectHTMLAttributes<HTMLSelectElement> & { variant?: 'default' | 'inline' }) {
+  const listId = useId()
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+  const [open, setOpen] = useState(false)
+  const [highlight, setHighlight] = useState(0)
+  const [menuStyle, setMenuStyle] = useState<{ top?: number; bottom?: number; left: number; width: number; maxHeight: number } | null>(null)
+  const options = readOptions(children)
+  const selectedValue = value == null ? '' : String(value)
+  const selected = options.find((option) => option.value === selectedValue) ?? options[0]
+  const placeholder = selectedValue === ''
+
+  const placeMenu = () => {
+    const rect = buttonRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const spaceBelow = window.innerHeight - rect.bottom
+    const spaceAbove = rect.top
+    const openBelow = spaceBelow >= 180 || spaceBelow >= spaceAbove
+    const available = (openBelow ? spaceBelow : spaceAbove) - 12
+    setMenuStyle({
+      left: rect.left,
+      width: rect.width,
+      maxHeight: Math.max(120, Math.min(280, available)),
+      top: openBelow ? rect.bottom + 6 : undefined,
+      bottom: openBelow ? undefined : window.innerHeight - rect.top + 6,
+    })
+  }
+
+  useEffect(() => {
+    if (!open) return
+    placeMenu()
+    const onPointer = (event: MouseEvent) => {
+      const target = event.target as Node
+      if (buttonRef.current?.contains(target) || listRef.current?.contains(target)) return
+      setOpen(false)
+    }
+    window.addEventListener('resize', placeMenu)
+    window.addEventListener('scroll', placeMenu, true)
+    document.addEventListener('mousedown', onPointer)
+    return () => {
+      window.removeEventListener('resize', placeMenu)
+      window.removeEventListener('scroll', placeMenu, true)
+      document.removeEventListener('mousedown', onPointer)
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    listRef.current?.querySelector<HTMLElement>(`[data-index="${highlight}"]`)?.scrollIntoView({ block: 'nearest' })
+  }, [highlight, open])
+
+  const choose = (option: SelectOption) => {
+    if (option.disabled) return
+    onChange?.({
+      target: { value: option.value },
+      currentTarget: { value: option.value },
+    } as ChangeEvent<HTMLSelectElement>)
+    setOpen(false)
+    buttonRef.current?.focus()
+  }
+
+  const openMenu = () => {
+    if (disabled) return
+    const index = options.findIndex((option) => option.value === selectedValue)
+    setHighlight(index >= 0 ? index : 0)
+    setOpen(true)
+  }
+
+  const onKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (disabled) return
+    if (!open) {
+      if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault()
+        openMenu()
+      }
+      return
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      setOpen(false)
+      return
+    }
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      setHighlight((current) => Math.min(options.length - 1, current + 1))
+      return
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      setHighlight((current) => Math.max(0, current - 1))
+      return
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      const option = options[highlight]
+      if (option) choose(option)
+    }
+    if (event.key === 'Tab') setOpen(false)
+  }
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        id={id}
+        type="button"
+        disabled={disabled}
+        aria-required={required || undefined}
+        aria-label={ariaLabel}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={listId}
+        className={cn(
+          variant === 'inline'
+            ? 'relative flex min-h-10 w-full items-center bg-transparent py-2 pl-1 pr-9 text-left text-sm font-semibold text-slate-700 outline-none'
+            : 'relative flex min-h-10 w-full items-center rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-11 text-left text-sm shadow-sm transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-100',
+          variant === 'default' && (placeholder ? 'text-slate-500' : 'text-slate-900'),
+          className,
+        )}
+        onClick={() => (open ? setOpen(false) : openMenu())}
+        onKeyDown={onKeyDown}
+      >
+        <span className="truncate">{selected?.label}</span>
+        <ChevronDown
+          className={cn(
+            'pointer-events-none absolute h-4 w-4 text-slate-500 transition-transform',
+            variant === 'inline' ? 'right-2' : 'right-5',
+            open && 'rotate-180',
+          )}
+          strokeWidth={1.8}
+          aria-hidden="true"
+        />
+      </button>
+      {open && menuStyle && createPortal(
+        <div
+          ref={listRef}
+          id={listId}
+          role="listbox"
+          style={{
+            position: 'fixed',
+            left: menuStyle.left,
+            width: menuStyle.width,
+            top: menuStyle.top,
+            bottom: menuStyle.bottom,
+            maxHeight: menuStyle.maxHeight,
+          }}
+          className="z-[70] overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+        >
+          {options.map((option, index) => {
+            const isSelected = option.value === selectedValue
+            return (
+              <button
+                key={`${option.value}-${index}`}
+                type="button"
+                role="option"
+                data-index={index}
+                aria-selected={isSelected}
+                disabled={option.disabled}
+                className={cn(
+                  'flex w-full px-3 py-2 text-left text-sm transition-colors disabled:cursor-not-allowed disabled:text-slate-300',
+                  isSelected
+                    ? 'bg-indigo-50 font-semibold text-indigo-700'
+                    : index === highlight
+                      ? 'bg-accent-wash text-slate-700'
+                      : 'text-slate-700 hover:bg-accent-wash',
+                )}
+                onMouseEnter={() => setHighlight(index)}
+                onClick={() => choose(option)}
+              >
+                {option.label}
+              </button>
+            )
+          })}
+        </div>,
+        document.body,
+      )}
+    </>
+  )
 }
 
 export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
