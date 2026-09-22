@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { BookOpen, FileText, Link, Plus } from 'lucide-react'
+import { BookOpen, FileText, Link, Pencil, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
@@ -24,7 +24,7 @@ import {
 import type { Column } from '../components/ui'
 import { toAppLanguage } from '../i18n'
 import { ApiError } from '../lib/axios'
-import type { CatalogueSubject, Major, Study, Subject } from '../lib/types'
+import type { CatalogueSubject, Major, Study, Subject, SubjectPlacement } from '../lib/types'
 import { localizedName, papersListPath, yearsOfStudyForStudy } from '../lib/utils'
 import {
   catalogueKeys,
@@ -33,7 +33,10 @@ import {
   deleteSubject,
   detachSubject,
   getCatalogueSubjects,
+  getUnattachedSubjects,
+  unlinkedMajorValue,
 } from '../services/catalogue'
+import { countPapersForMajor, countPapersForSubjects } from '../services/papers'
 import { getMajors, getStudies, getSubjects } from '../services/lookups'
 
 const toNumber = (value: string | null) => (value ? Number(value) : undefined)
@@ -45,6 +48,8 @@ type SubjectEditor = {
   majorId?: number
   maximumYear: number
   placementYear?: number
+  placements?: SubjectPlacement[]
+  preferUnlinked?: boolean
 }
 
 export function CataloguePage() {
@@ -120,13 +125,14 @@ export function CataloguePage() {
     enabled: effectiveStudyId > 0,
     staleTime: 10 * 60 * 1000,
   })
-  const effectiveMajorId = Number(majorId) || majors.data?.data[0]?.id || 0
-  const selectedMajor = majors.data?.data.find((major) => major.id === effectiveMajorId)
+  const showingUnlinked = majorId === unlinkedMajorValue
+  const effectiveMajorId = showingUnlinked ? 0 : (Number(majorId) || majors.data?.data[0]?.id || 0)
+  const selectedMajor = showingUnlinked ? undefined : majors.data?.data.find((major) => major.id === effectiveMajorId)
 
   const subjects = useQuery({
     queryKey: catalogueKeys.subjects(effectiveMajorId, yearOfStudy),
     queryFn: () => getSubjects(effectiveMajorId, yearOfStudy),
-    enabled: effectiveMajorId > 0,
+    enabled: view === 'major' && !showingUnlinked && effectiveMajorId > 0,
   })
   const visibleSubjects = (subjects.data?.data ?? []).filter(
     (subject) => !yearOfStudy || subject.yearOfStudy === yearOfStudy,
@@ -137,12 +143,31 @@ export function CataloguePage() {
     enabled: view === 'all',
     placeholderData: (previous) => previous,
   })
+  const unattachedSubjects = useQuery({
+    queryKey: catalogueKeys.unattached,
+    queryFn: getUnattachedSubjects,
+    enabled: view === 'major' && showingUnlinked,
+  })
+  const listedSubjectIds = view === 'all'
+    ? (allSubjects.data?.data.map((subject) => subject.id) ?? [])
+    : showingUnlinked
+      ? (unattachedSubjects.data?.data.map((subject) => subject.id) ?? [])
+      : visibleSubjects.map((subject) => subject.id)
+  const paperCounts = useQuery({
+    queryKey: ['papers', 'subject-counts', view === 'major' && !showingUnlinked ? effectiveMajorId : listedSubjectIds],
+    queryFn: () => (
+      view === 'major' && !showingUnlinked
+        ? countPapersForMajor(effectiveMajorId)
+        : countPapersForSubjects(listedSubjectIds)
+    ),
+    enabled: listedSubjectIds.length > 0,
+  })
 
   const openSubjectPapers = (subject: Subject) => {
     navigate(papersListPath({
-      studiesId: effectiveStudyId || undefined,
-      majorId: effectiveMajorId || undefined,
-      yearOfStudy: yearOfStudy ?? subject.yearOfStudy,
+      studiesId: showingUnlinked ? undefined : effectiveStudyId || undefined,
+      majorId: showingUnlinked ? undefined : effectiveMajorId || undefined,
+      yearOfStudy: showingUnlinked ? undefined : (yearOfStudy ?? subject.yearOfStudy),
       subjectId: subject.id,
     }))
   }
@@ -206,11 +231,17 @@ export function CataloguePage() {
       render: (subject) => <span className="font-semibold text-slate-900">{localizedName(subject, language)}</span>,
     },
     {
+      key: 'papers',
+      header: t('catalogue.paperCount'),
+      sortValue: (subject) => paperCounts.data?.[subject.id] ?? 0,
+      render: (subject) => (paperCounts.data ? (paperCounts.data[subject.id] ?? 0) : '…'),
+    },
+    ...(showingUnlinked ? [] : [{
       key: 'year',
       header: t('papers.yearOfStudy'),
-      sortValue: (subject) => subject.yearOfStudy,
-      render: (subject) => t('common.studyYear', { year: subject.yearOfStudy }),
-    },
+      sortValue: (subject: Subject) => subject.yearOfStudy,
+      render: (subject: Subject) => t('common.studyYear', { year: subject.yearOfStudy }),
+    }]),
     {
       key: 'actions',
       header: '',
@@ -227,15 +258,22 @@ export function CataloguePage() {
             },
             {
               key: 'edit',
-              label: t('catalogue.editSubject'),
-              onSelect: () => setSubjectEditor({
-                subject,
-                majorId: effectiveMajorId,
-                maximumYear: selectedStudy?.yearsOfStudy ?? 1,
-                placementYear: subject.yearOfStudy,
-              }),
+              label: t('catalogue.edit'),
+              icon: <Pencil className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />,
+              onSelect: () => setSubjectEditor(showingUnlinked
+                ? {
+                  subject,
+                  maximumYear: selectedStudy?.yearsOfStudy ?? 1,
+                  preferUnlinked: true,
+                }
+                : {
+                  subject,
+                  majorId: effectiveMajorId,
+                  maximumYear: selectedStudy?.yearsOfStudy ?? 1,
+                  placementYear: subject.yearOfStudy,
+                }),
             },
-            {
+            ...(!showingUnlinked ? [{
               key: 'detach',
               label: t('catalogue.detachSubject'),
               separatorBefore: true,
@@ -244,11 +282,12 @@ export function CataloguePage() {
                 t('catalogue.detachConfirm', { subject: localizedName(subject, language) }),
                 () => detachSubject({ majorId: effectiveMajorId, subjectId: subject.id }),
               ),
-            },
+            }] : []),
             {
               key: 'delete',
               label: t('catalogue.deleteSubjectEverywhere'),
               danger: true,
+              separatorBefore: showingUnlinked,
               disabled: actionBusy,
               onSelect: () => confirmAction(
                 t('catalogue.deleteSubjectConfirm', { subject: localizedName(subject, language) }),
@@ -273,6 +312,12 @@ export function CataloguePage() {
       header: t('papers.subject'),
       sortValue: (subject) => localizedName(subject, language),
       render: (subject) => <span className="font-semibold text-slate-900">{localizedName(subject, language)}</span>,
+    },
+    {
+      key: 'papers',
+      header: t('catalogue.paperCount'),
+      sortValue: (subject) => paperCounts.data?.[subject.id] ?? 0,
+      render: (subject) => (paperCounts.data ? (paperCounts.data[subject.id] ?? 0) : '…'),
     },
     {
       key: 'placements',
@@ -314,11 +359,22 @@ export function CataloguePage() {
             },
             {
               key: 'edit',
-              label: t('catalogue.editSubjectIdentity'),
-              onSelect: () => setSubjectEditor({
-                subject,
-                maximumYear: 1,
-              }),
+              label: t('catalogue.edit'),
+              icon: <Pencil className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />,
+              onSelect: () => {
+                const placement = subject.placements.find((item) =>
+                  (!effectiveStudyId || item.studiesId === effectiveStudyId)
+                  && (!effectiveMajorId || item.majorId === effectiveMajorId)
+                  && (!yearOfStudy || item.yearOfStudy === yearOfStudy),
+                ) ?? subject.placements[0]
+                setSubjectEditor({
+                  subject,
+                  majorId: placement?.majorId,
+                  maximumYear: selectedStudy?.yearsOfStudy ?? 1,
+                  placementYear: placement?.yearOfStudy,
+                  placements: subject.placements,
+                })
+              },
             },
             {
               key: 'delete',
@@ -412,18 +468,20 @@ export function CataloguePage() {
               <div className="min-w-0 flex-1">
                 <Field label={t('papers.major')}>
                   <Select
-                    value={effectiveMajorId || ''}
+                    value={showingUnlinked ? unlinkedMajorValue : (effectiveMajorId || '')}
                     disabled={!selectedStudy || majors.isPending}
                     onChange={(event) => {
                       setCatalogueParams((next) => {
                         next.delete('page')
                         if (effectiveStudyId) next.set('studiesId', String(effectiveStudyId))
+                        if (event.target.value === unlinkedMajorValue) next.delete('yearOfStudy')
                         if (event.target.value) next.set('majorId', event.target.value)
                         else next.delete('majorId')
                       })
                     }}
                   >
                     {(majors.data?.data.length ?? 0) === 0 && <option value="">{t('catalogue.noMajors')}</option>}
+                    <option value={unlinkedMajorValue}>{t('catalogue.notLinked')}</option>
                     {majors.data?.data.map((major) => (
                       <option key={major.id} value={major.id}>{localizedName(major, language)}</option>
                     ))}
@@ -467,8 +525,8 @@ export function CataloguePage() {
 
             <Field label={t('papers.yearOfStudy')}>
               <Select
-                value={yearOfStudy ?? ''}
-                disabled={!selectedMajor}
+                value={showingUnlinked ? '' : (yearOfStudy ?? '')}
+                disabled={showingUnlinked || !selectedMajor}
                 onChange={(event) => {
                   setCatalogueParams((next) => {
                     next.delete('page')
@@ -517,16 +575,20 @@ export function CataloguePage() {
                 {t('catalogue.allSubjects')}
               </Button>
             </div>
-            {view === 'major' && selectedMajor && (
+            {view === 'major' && (selectedMajor || showingUnlinked) && (
               <div className="flex flex-wrap gap-2">
-                <Button variant="secondary" onClick={() => setAttachOpen(true)}>
-                  <Link className="h-4 w-4" aria-hidden="true" />{t('catalogue.attachExisting')}
-                </Button>
-                <Button onClick={() => setSubjectEditor({
-                  majorId: selectedMajor.id,
-                  maximumYear: selectedStudy?.yearsOfStudy ?? 1,
-                  placementYear: yearOfStudy,
-                })}>
+                {selectedMajor && (
+                  <Button variant="secondary" onClick={() => setAttachOpen(true)}>
+                    <Link className="h-4 w-4" aria-hidden="true" />{t('catalogue.attachExisting')}
+                  </Button>
+                )}
+                <Button onClick={() => setSubjectEditor(showingUnlinked
+                  ? { maximumYear: selectedStudy?.yearsOfStudy ?? 1, preferUnlinked: true }
+                  : {
+                    majorId: selectedMajor?.id,
+                    maximumYear: selectedStudy?.yearsOfStudy ?? 1,
+                    placementYear: yearOfStudy,
+                  })}>
                   <Plus className="h-4 w-4" aria-hidden="true" />{t('catalogue.addSubject')}
                 </Button>
               </div>
@@ -534,7 +596,25 @@ export function CataloguePage() {
           </div>
 
           {view === 'major' ? (
-            !selectedMajor ? (
+            showingUnlinked ? (
+              unattachedSubjects.isPending ? (
+                <LoadingState label={t('catalogue.loadingSubjects')} />
+              ) : unattachedSubjects.isError ? (
+                <ErrorState
+                  message={unattachedSubjects.error instanceof ApiError ? unattachedSubjects.error.message : t('catalogue.loadError')}
+                  onRetry={() => unattachedSubjects.refetch()}
+                />
+              ) : unattachedSubjects.data.data.length === 0 ? (
+                <EmptyState title={t('catalogue.noSubjectsTitle')} description={t('catalogue.noSubjectsDescription')} />
+              ) : (
+                <DataTable
+                  columns={subjectColumns}
+                  rows={unattachedSubjects.data.data}
+                  getRowKey={(subject) => subject.id}
+                  onRowClick={openSubjectPapers}
+                />
+              )
+            ) : !selectedMajor ? (
               <EmptyState title={t('catalogue.noMajorTitle')} description={t('catalogue.noMajorDescription')} />
             ) : subjects.isPending ? (
               <LoadingState label={t('catalogue.loadingSubjects')} />
@@ -640,9 +720,24 @@ export function CataloguePage() {
         <SubjectFormModal
           {...subjectEditor}
           onClose={() => setSubjectEditor(null)}
-          onSaved={async (savedYear) => {
+          onSaved={async (placement) => {
             await refresh()
-            if (!subjectEditor.subject) rememberYear(savedYear)
+            if (placement && 'unlinked' in placement) {
+              setCatalogueParams((next) => {
+                next.delete('view')
+                next.set('majorId', unlinkedMajorValue)
+                next.delete('yearOfStudy')
+                next.delete('page')
+              })
+            } else if (placement?.studiesId && placement.majorId) {
+              setCatalogueParams((next) => {
+                next.set('view', 'major')
+                next.set('studiesId', String(placement.studiesId))
+                next.set('majorId', String(placement.majorId))
+                next.set('yearOfStudy', String(placement.yearOfStudy))
+                next.delete('page')
+              })
+            }
             setSubjectEditor(null)
           }}
         />

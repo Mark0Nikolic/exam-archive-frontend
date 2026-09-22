@@ -81,8 +81,8 @@ export interface CreateSubjectInput {
   nameSr: string
   nameEn: string | null
   code: string | null
-  majorId: number
-  yearOfStudy: number
+  majorId?: number
+  yearOfStudy?: number
 }
 
 export interface UpdateSubjectInput {

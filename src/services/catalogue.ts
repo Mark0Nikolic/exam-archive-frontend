@@ -11,6 +11,8 @@ import type {
   UpdateSubjectInput,
 } from '../lib/types'
 
+export const unlinkedMajorValue = 'unlinked'
+
 export const catalogueKeys = {
   all: ['lookups'] as const,
   studies: ['lookups', 'studies'] as const,
@@ -19,6 +21,25 @@ export const catalogueKeys = {
     ['lookups', 'subjects', majorId, yearOfStudy] as const,
   subjectCatalogue: (search: string, page: number) =>
     ['lookups', 'subject-catalogue', search, page] as const,
+  unattached: ['lookups', 'subjects', 'unattached'] as const,
+}
+
+export async function getUnattachedSubjects() {
+  const first = await api.get<PaginatedResponse<Subject>>('/api/subjects/unattached', {
+    params: { page: 1, perPage: 100 },
+  })
+  const pages = [first.data]
+  const totalPages = Math.min(first.data.meta.totalPages, 10)
+  for (let page = 2; page <= totalPages; page += 1) {
+    const next = await api.get<PaginatedResponse<Subject>>('/api/subjects/unattached', {
+      params: { page, perPage: 100 },
+    })
+    pages.push(next.data)
+  }
+  return {
+    data: pages.flatMap((page) => page.data),
+    meta: first.data.meta,
+  }
 }
 
 export async function getCatalogueSubjects(search = '', page = 1) {

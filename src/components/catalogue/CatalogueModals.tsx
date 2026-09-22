@@ -3,17 +3,19 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { toAppLanguage } from '../../i18n'
 import { ApiError } from '../../lib/axios'
-import type { CatalogueSubject, Major, Study, Subject } from '../../lib/types'
+import type { CatalogueSubject, Major, Study, Subject, SubjectPlacement } from '../../lib/types'
 import { fieldError, localizedName, yearsOfStudyForStudy } from '../../lib/utils'
 import {
   attachSubject,
   catalogueKeys,
   createMajor,
+  detachSubject,
   createStudy,
   createSubject,
   getCatalogueSubjects,
   updateMajor,
   updateStudy,
+  unlinkedMajorValue,
   updateSubject,
 } from '../../services/catalogue'
 import { getMajors, getStudies } from '../../services/lookups'
@@ -211,6 +213,8 @@ export function SubjectFormModal({
   majorId,
   maximumYear,
   placementYear,
+  placements = [],
+  preferUnlinked = false,
   onClose,
   onSaved,
 }: {
@@ -218,16 +222,49 @@ export function SubjectFormModal({
   majorId?: number
   maximumYear: number
   placementYear?: number
+  placements?: SubjectPlacement[]
+  preferUnlinked?: boolean
   onClose: () => void
-  onSaved: (yearOfStudy?: number) => void
+  onSaved: (placement?: { majorId: number; studiesId: number; yearOfStudy: number } | { unlinked: true }) => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const language = toAppLanguage(i18n.resolvedLanguage ?? i18n.language)
+  const placing = true
   const [nameSr, setNameSr] = useState(subject?.nameSr ?? '')
   const [nameEn, setNameEn] = useState(subject?.nameEn ?? '')
   const [code, setCode] = useState(subject?.code ?? '')
+  const [chosenMajorId, setChosenMajorId] = useState(
+    majorId ? String(majorId) : (preferUnlinked || subject ? unlinkedMajorValue : ''),
+  )
   const [year, setYear] = useState(String(placementYear ?? 1))
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [generalError, setGeneralError] = useState('')
+  const studies = useQuery({
+    queryKey: catalogueKeys.studies,
+    queryFn: getStudies,
+    enabled: placing,
+    staleTime: 10 * 60 * 1000,
+  })
+  const majors = useQuery({
+    queryKey: ['lookups', 'majors', 'all', studies.data?.data.map((study) => study.id).join(',')],
+    queryFn: async () => {
+      const pages = await Promise.all((studies.data?.data ?? []).map((study) => getMajors(study.id)))
+      return pages.flatMap((page) => page.data)
+    },
+    enabled: placing && (studies.data?.data.length ?? 0) > 0,
+  })
+  const leavingUnlinked = chosenMajorId === unlinkedMajorValue
+  const selectedMajor = majors.data?.find((major) => String(major.id) === chosenMajorId)
+  const selectedStudy = studies.data?.data.find((study) => study.id === selectedMajor?.studiesId)
+  const yearOptions = selectedMajor ? yearsOfStudyForStudy(selectedStudy) : Array.from({ length: Math.max(maximumYear, 1) }, (_, index) => index + 1)
+  const majorOptions = (majors.data ?? []).map((major) => {
+    const study = studies.data?.data.find((item) => item.id === major.studiesId)
+    const studyName = study ? localizedName(study, language) : ''
+    return {
+      id: major.id,
+      label: studyName ? `${localizedName(major, language)} — ${studyName}` : localizedName(major, language),
+    }
+  })
   const mutation = useMutation({
     mutationFn: async () => {
       const identity = {
@@ -235,29 +272,76 @@ export function SubjectFormModal({
         nameEn: optional(nameEn),
         code: optional(code),
       }
+      if (leavingUnlinked) {
+        if (subject) {
+          await updateSubject({ id: subject.id, ...identity })
+          const majorIds = new Set([
+            ...placements.map((item) => item.majorId),
+            ...(majorId ? [majorId] : []),
+          ])
+          for (const linkedMajorId of majorIds) {
+            await detachSubject({ majorId: linkedMajorId, subjectId: subject.id })
+          }
+        } else {
+          await createSubject(identity)
+        }
+        return
+      }
+      const placement = { majorId: Number(chosenMajorId), yearOfStudy: Number(year) }
       if (subject) {
-        return updateSubject({
+        const linked = new Set([
+          ...placements.map((item) => item.majorId),
+          ...(majorId ? [majorId] : []),
+        ])
+        if (linked.has(placement.majorId)) {
+          return updateSubject({
+            id: subject.id,
+            ...identity,
+            ...placement,
+          })
+        }
+        await updateSubject({
           id: subject.id,
           ...identity,
-          ...(majorId ? { majorId, yearOfStudy: Number(year) } : {}),
+        })
+        return attachSubject({
+          majorId: placement.majorId,
+          subjectId: subject.id,
+          yearOfStudy: placement.yearOfStudy,
         })
       }
       return createSubject({
         ...identity,
-        majorId: majorId as number,
+        ...placement,
+      })
+    },
+    onSuccess: () => {
+      if (leavingUnlinked) {
+        onSaved({ unlinked: true })
+        return
+      }
+      const major = majors.data?.find((item) => String(item.id) === chosenMajorId)
+      onSaved({
+        majorId: Number(chosenMajorId),
+        studiesId: major?.studiesId ?? 0,
         yearOfStudy: Number(year),
       })
     },
-    onSuccess: () => onSaved(majorId ? Number(year) : undefined),
   })
+
+  useEffect(() => {
+    if (!selectedMajor) return
+    const years = yearsOfStudyForStudy(selectedStudy)
+    setYear((current) => (years.includes(Number(current)) ? current : String(years[0] ?? 1)))
+  }, [selectedMajor, selectedStudy])
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
     const nextErrors: Record<string, string> = {}
     if (!nameSr.trim()) nextErrors.nameSr = t('catalogue.validation.nameSrRequired')
-    if (!subject && !majorId) nextErrors.year = t('catalogue.validation.majorRequired')
-    if (majorId && (!Number.isInteger(Number(year)) || Number(year) < 1 || Number(year) > maximumYear)) {
-      nextErrors.year = t('catalogue.validation.yearRange', { max: maximumYear })
+    if (!leavingUnlinked && !selectedMajor) nextErrors.major = t('catalogue.validation.majorRequired')
+    if (!leavingUnlinked && (!Number.isInteger(Number(year)) || !yearOptions.includes(Number(year)))) {
+      nextErrors.year = t('catalogue.validation.yearRange', { max: yearOptions.at(-1) ?? maximumYear })
     }
     setErrors(nextErrors)
     setGeneralError('')
@@ -271,6 +355,7 @@ export function SubjectFormModal({
           nameSr: fieldError(error.errors, 'NameSr') ?? '',
           nameEn: fieldError(error.errors, 'NameEn') ?? '',
           code: fieldError(error.errors, 'Code') ?? '',
+          major: fieldError(error.errors, 'MajorId') ?? '',
           year: fieldError(error.errors, 'YearOfStudy') ?? '',
         })
       }
@@ -282,7 +367,7 @@ export function SubjectFormModal({
     <Modal
       open
       title={subject ? t('catalogue.editSubject') : t('catalogue.addSubject')}
-      description={majorId ? t('catalogue.subjectPlacementDescription') : t('catalogue.subjectIdentityDescription')}
+      description={subject ? t('catalogue.subjectPlacementDescription') : t('catalogue.addSubjectDescription')}
       onClose={onClose}
     >
       <form onSubmit={submit}>
@@ -297,18 +382,48 @@ export function SubjectFormModal({
           <Field label={t('catalogue.nameEn')} error={errors.nameEn}>
             <Input value={nameEn} maxLength={200} onChange={(event) => setNameEn(event.target.value)} />
           </Field>
-          {majorId && (
-            <Field label={t('papers.yearOfStudy')} error={errors.year} required>
-              <Select value={year} onChange={(event) => setYear(event.target.value)}>
-                {Array.from({ length: maximumYear }, (_, index) => index + 1).map((value) => (
-                  <option key={value} value={value}>{t('common.studyYear', { year: value })}</option>
-                ))}
-              </Select>
-            </Field>
+          {placing && (
+            <>
+              <Field label={t('papers.major')} error={errors.major} required>
+                <Select
+                  value={chosenMajorId}
+                  disabled={majors.isPending}
+                  onChange={(event) => {
+                    const nextMajorId = event.target.value
+                    setChosenMajorId(nextMajorId)
+                    const nextMajor = majors.data?.find((major) => String(major.id) === nextMajorId)
+                    const nextStudy = studies.data?.data.find((study) => study.id === nextMajor?.studiesId)
+                    const nextYears = yearsOfStudyForStudy(nextStudy)
+                    setYear((current) => (nextYears.includes(Number(current)) ? current : String(nextYears[0] ?? 1)))
+                  }}
+                >
+                  <option value="">{t('catalogue.selectMajor')}</option>
+                  <option value={unlinkedMajorValue}>{t('catalogue.notLinked')}</option>
+                  {majorOptions.map((major) => (
+                    <option key={major.id} value={major.id}>{major.label}</option>
+                  ))}
+                </Select>
+              </Field>
+              {!leavingUnlinked && (
+              <Field label={t('papers.yearOfStudy')} error={errors.year} required>
+                <Select value={year} disabled={!chosenMajorId} onChange={(event) => setYear(event.target.value)}>
+                  {yearOptions.map((value) => (
+                    <option key={value} value={value}>{t('common.studyYear', { year: value })}</option>
+                  ))}
+                </Select>
+              </Field>
+              )}
+              {studies.isSuccess && majorOptions.length === 0 && !leavingUnlinked && (
+                <p className="text-sm text-rose-700 sm:col-span-2">{t('catalogue.noMajorDescription')}</p>
+              )}
+            </>
           )}
           {generalError && <p role="alert" className="sm:col-span-2 text-sm text-rose-700">{generalError}</p>}
         </div>
-        <ModalActions busy={mutation.isPending} onClose={onClose} />
+        <ModalActions
+          busy={mutation.isPending || (!leavingUnlinked && studies.isPending) || (!leavingUnlinked && majors.isFetching)}
+          onClose={onClose}
+        />
       </form>
     </Modal>
   )
@@ -378,6 +493,7 @@ export function AttachSubjectModal({
     if (slot === 1) {
       setMajor1(value)
       setYear1(nextYear)
+      if (value && value === major2) setMajor2('')
     } else {
       setMajor2(value)
       setYear2(nextYear)
@@ -393,7 +509,7 @@ export function AttachSubjectModal({
       setMajor1(String(first.majorId))
       setYear1(String(first.yearOfStudy))
     }
-    if (second) {
+    if (second && second.majorId !== first?.majorId) {
       setMajor2(String(second.majorId))
       setYear2(String(second.yearOfStudy))
     }
@@ -532,9 +648,12 @@ export function AttachSubjectModal({
                 <Field label={t(slot === 1 ? 'catalogue.majorOne' : 'catalogue.majorTwo')} required>
                   <Select value={majorId} disabled={majors.isPending} onChange={(event) => changeMajor(slot, event.target.value)}>
                     <option value="">{t('catalogue.noMajors')}</option>
-                    {majorOptions.map((major) => (
-                      <option key={major.id} value={major.id}>{major.label}</option>
-                    ))}
+                    {majorOptions.map((major) => {
+                      const takenByOther = String(major.id) === (slot === 1 ? major2 : major1)
+                      return (
+                        <option key={major.id} value={major.id} disabled={takenByOther}>{major.label}</option>
+                      )
+                    })}
                   </Select>
                 </Field>
                 <Field label={t('papers.yearOfStudy')} required>

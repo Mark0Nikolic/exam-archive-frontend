@@ -178,10 +178,18 @@ export function Select({
     buttonRef.current?.focus()
   }
 
+  const nextEnabled = (start: number, direction: 1 | -1) => {
+    for (let index = start + direction; index >= 0 && index < options.length; index += direction) {
+      if (!options[index]?.disabled) return index
+    }
+    return start
+  }
+
   const openMenu = () => {
     if (disabled) return
-    const index = options.findIndex((option) => option.value === selectedValue)
-    setHighlight(index >= 0 ? index : 0)
+    const selectedIndex = options.findIndex((option) => option.value === selectedValue && !option.disabled)
+    const fallback = options.findIndex((option) => !option.disabled)
+    setHighlight(selectedIndex >= 0 ? selectedIndex : Math.max(fallback, 0))
     setOpen(true)
   }
 
@@ -201,12 +209,12 @@ export function Select({
     }
     if (event.key === 'ArrowDown') {
       event.preventDefault()
-      setHighlight((current) => Math.min(options.length - 1, current + 1))
+      setHighlight((current) => nextEnabled(current, 1))
       return
     }
     if (event.key === 'ArrowUp') {
       event.preventDefault()
-      setHighlight((current) => Math.max(0, current - 1))
+      setHighlight((current) => nextEnabled(current, -1))
       return
     }
     if (event.key === 'Enter' || event.key === ' ') {
@@ -276,14 +284,16 @@ export function Select({
                 aria-selected={isSelected}
                 disabled={option.disabled}
                 className={cn(
-                  'flex w-full px-3 py-2 text-left text-sm transition-colors disabled:cursor-not-allowed disabled:text-slate-300',
+                  'flex w-full px-3 py-2 text-left text-sm transition-colors disabled:cursor-not-allowed disabled:text-slate-400 disabled:line-through disabled:hover:bg-transparent',
                   isSelected
                     ? 'bg-indigo-50 font-semibold text-indigo-700'
                     : index === highlight
                       ? 'bg-accent-wash text-slate-700'
                       : 'text-slate-700 hover:bg-accent-wash',
                 )}
-                onMouseEnter={() => setHighlight(index)}
+                onMouseEnter={() => {
+                  if (!option.disabled) setHighlight(index)
+                }}
                 onClick={() => choose(option)}
               >
                 {option.label}

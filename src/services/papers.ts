@@ -30,6 +30,34 @@ export async function getPapers(query: PaperQuery) {
   return data
 }
 
+export async function countPapersForMajor(majorId: number) {
+  const counts: Record<number, number> = {}
+  let page = 1
+  let totalPages = 1
+  do {
+    const result = await getPapers({ page, perPage: 100, majorId })
+    for (const paper of result.data) {
+      counts[paper.subjectId] = (counts[paper.subjectId] ?? 0) + 1
+    }
+    totalPages = result.meta.totalPages
+    page += 1
+  } while (page <= totalPages && page <= 50)
+  return counts
+}
+
+export async function countPapersForSubjects(subjectIds: number[]) {
+  const counts: Record<number, number> = {}
+  const ids = [...new Set(subjectIds)]
+  for (let index = 0; index < ids.length; index += 8) {
+    const slice = ids.slice(index, index + 8)
+    const pages = await Promise.all(slice.map((subjectId) => getPapers({ page: 1, perPage: 1, subjectId })))
+    slice.forEach((subjectId, sliceIndex) => {
+      counts[subjectId] = pages[sliceIndex]?.meta.totalItems ?? 0
+    })
+  }
+  return counts
+}
+
 export async function getPaper(id: number) {
   const { data } = await api.get<PaperDetail>(`/api/papers/${id}`)
   return data
