@@ -156,17 +156,34 @@ export function PendingPapersPage() {
     {
       key: 'subject',
       header: t('papers.subject'),
+      sortValue: (paper) => localizedPaperSubject(paper, language),
       render: (paper) => <p className="font-semibold text-slate-900">{localizedPaperSubject(paper, language)}</p>,
     },
-    { key: 'type', header: t('pending.exam'), render: (paper) => t(`common.examTypes.${paper.examType}`) },
+    {
+      key: 'type',
+      header: t('pending.exam'),
+      sortValue: (paper) => t(`common.examTypes.${paper.examType}`),
+      render: (paper) => t(`common.examTypes.${paper.examType}`),
+    },
     {
       key: 'date',
       header: t('papers.examDate'),
+      sortValue: (paper) => paper.year * 100 + paper.month,
       render: (paper) => `${months[paper.month - 1]} ${paper.year}`,
     },
-    { key: 'pages', header: t('papers.pages'), render: (paper) => paper.pageCount },
-    { key: 'uploaded', header: t('pending.submitted'), render: (paper) => formatDate(paper.uploadedAt, language) },
-    { key: 'status', header: t('pending.status'), render: (paper) => <StatusBadge status={paper.status} /> },
+    { key: 'pages', header: t('papers.pages'), sortValue: (paper) => paper.pageCount, render: (paper) => paper.pageCount },
+    {
+      key: 'uploaded',
+      header: t('pending.submitted'),
+      sortValue: (paper) => paper.uploadedAt,
+      render: (paper) => formatDate(paper.uploadedAt, language),
+    },
+    {
+      key: 'status',
+      header: t('pending.status'),
+      sortValue: (paper) => t(`common.statuses.${paper.status}`),
+      render: (paper) => <StatusBadge status={paper.status} />,
+    },
     {
       key: 'actions',
       header: t('pending.actions'),

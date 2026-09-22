@@ -118,7 +118,7 @@ export function ActionMenu({
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         className={cn(
-          'inline-flex min-h-8 items-center justify-center rounded-lg px-2 py-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600',
+          'inline-flex min-h-8 items-center justify-center rounded-lg px-2 py-1 text-slate-500 transition hover:bg-accent-wash hover:text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600',
           className,
         )}
         onClick={(event) => {
@@ -157,7 +157,7 @@ export function ActionMenu({
                   'flex min-h-9 w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-45',
                   item.danger
                     ? 'text-rose-700 hover:bg-rose-50'
-                    : 'text-slate-700 hover:bg-slate-100',
+                    : 'text-slate-700 hover:bg-accent-wash',
                 )}
                 onClick={() => {
                   setOpen(false)

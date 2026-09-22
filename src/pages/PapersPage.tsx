@@ -117,17 +117,34 @@ export function PapersPage() {
     {
       key: 'subject',
       header: t('papers.subject'),
+      sortValue: (paper) => localizedPaperSubject(paper, language),
       render: (paper) => <p className="font-semibold text-slate-900">{localizedPaperSubject(paper, language)}</p>,
     },
-    { key: 'type', header: t('papers.examType'), render: (paper) => t(`common.examTypes.${paper.examType}`) },
+    {
+      key: 'type',
+      header: t('papers.examType'),
+      sortValue: (paper) => t(`common.examTypes.${paper.examType}`),
+      render: (paper) => t(`common.examTypes.${paper.examType}`),
+    },
     {
       key: 'date',
       header: t('papers.examDate'),
+      sortValue: (paper) => paper.year * 100 + paper.month,
       render: (paper) => `${months[paper.month - 1]} ${paper.year}`,
     },
-    { key: 'pages', header: t('papers.pages'), render: (paper) => paper.pageCount },
-    { key: 'status', header: t('papers.status'), render: (paper) => <StatusBadge status={paper.status} /> },
-    { key: 'uploaded', header: t('papers.uploaded'), render: (paper) => formatDate(paper.uploadedAt, language) },
+    { key: 'pages', header: t('papers.pages'), sortValue: (paper) => paper.pageCount, render: (paper) => paper.pageCount },
+    {
+      key: 'status',
+      header: t('papers.status'),
+      sortValue: (paper) => t(`common.statuses.${paper.status}`),
+      render: (paper) => <StatusBadge status={paper.status} />,
+    },
+    {
+      key: 'uploaded',
+      header: t('papers.uploaded'),
+      sortValue: (paper) => paper.uploadedAt,
+      render: (paper) => formatDate(paper.uploadedAt, language),
+    },
     {
       key: 'view',
       header: '',

@@ -34,7 +34,7 @@ export function AppShell() {
           <button
             type="button"
             aria-label={t("shell.openNavigation")}
-            className="rounded-lg border border-slate-200 p-2 text-slate-600 transition-colors hover:bg-slate-50 lg:hidden"
+            className="rounded-lg border border-slate-200 p-2 text-slate-600 transition-colors hover:bg-accent-wash lg:hidden"
             onClick={() => setMobileOpen(true)}
           >
             <Menu className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
@@ -44,7 +44,7 @@ export function AppShell() {
             aria-label={t("shell.expandSidebar")}
             aria-expanded={false}
             className={cn(
-              "hidden bg-white p-2 text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-950",
+              "hidden bg-white p-2 text-slate-600 transition-colors hover:bg-accent-wash hover:text-slate-950",
               collapsed && "lg:block",
             )}
             onClick={() => setCollapsed(false)}

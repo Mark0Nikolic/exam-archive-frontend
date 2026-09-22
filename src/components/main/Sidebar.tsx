@@ -3,7 +3,7 @@ import { BookOpen, FileText, Home, PanelLeftClose, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { NavLink } from "react-router-dom";
-import academyLogoSm from "../../assets/akademijanis-sm.png";
+import academyLogo from "../../assets/akademija-logo-dark.png";
 import { useAuth } from "../../hooks/useAuth";
 import { cn, isAdmin, roleName } from "../../lib/utils";
 import { Button } from "../ui";
@@ -62,8 +62,8 @@ function SidebarNavLink({
         cn(
           "group flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold transition-colors duration-200",
           isActive
-            ? "bg-blue-50 text-blue-700"
-            : "text-slate-600 hover:bg-slate-100 hover:text-slate-950",
+            ? "bg-indigo-50 text-indigo-700"
+            : "text-slate-600 hover:bg-accent-wash hover:text-slate-950",
           collapsed && "lg:justify-center lg:gap-0",
         )
       }
@@ -125,19 +125,17 @@ export function Sidebar({
             collapsed && "lg:pointer-events-none lg:opacity-0",
           )}
         >
-          <div className="relative flex h-[72px] shrink-0 items-center border-b border-slate-200 px-[18px]">
-            <div className="flex min-w-0 items-center">
-              <img
-                src={academyLogoSm}
-                alt={t("common.brand")}
-                className="h-8 w-auto max-w-[148px] object-contain"
-              />
-            </div>
+          <div className="relative flex h-16 shrink-0 items-center gap-1 border-b border-slate-200 bg-white px-3">
+            <img
+              src={academyLogo}
+              alt={t("common.brand")}
+              className="h-11 w-auto max-w-[11rem] object-contain object-left"
+            />
 
             <button
               type="button"
               aria-label={t("shell.closeNavigation")}
-              className="ml-auto rounded-md p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 lg:hidden"
+              className="ml-auto shrink-0 rounded-md p-2 text-slate-500 transition-colors hover:bg-accent-wash hover:text-slate-900 lg:hidden"
               onClick={onMobileClose}
             >
               <X className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
@@ -146,7 +144,7 @@ export function Sidebar({
             <button
               type="button"
               aria-label={t("shell.collapseSidebar")}
-              className="ml-auto hidden rounded-md p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 lg:block"
+              className="ml-auto hidden shrink-0 rounded-md p-2 text-slate-500 transition-colors hover:bg-accent-wash hover:text-slate-900 lg:block"
               onClick={onCollapse}
             >
               <PanelLeftClose
@@ -238,7 +236,7 @@ export function Sidebar({
               aria-label={t("shell.openProfileMenu")}
               title={collapsed ? user.username : undefined}
               className={cn(
-                "flex min-h-12 w-full items-center gap-3 rounded-lg px-2 text-left transition-colors duration-200 hover:bg-slate-100",
+                "flex min-h-12 w-full items-center gap-3 rounded-lg px-2 text-left transition-colors duration-200 hover:bg-accent-wash",
                 collapsed && "lg:justify-center lg:gap-0",
               )}
               onClick={() => setProfileOpen((open) => !open)}

@@ -154,16 +154,19 @@ export function CataloguePage() {
     {
       key: 'code',
       header: t('catalogue.code'),
+      sortValue: (subject) => subject.code ?? '',
       render: (subject) => subject.code || t('catalogue.noCode'),
     },
     {
       key: 'name',
       header: t('papers.subject'),
+      sortValue: (subject) => localizedName(subject, language),
       render: (subject) => <span className="font-semibold text-slate-900">{localizedName(subject, language)}</span>,
     },
     {
       key: 'year',
       header: t('papers.yearOfStudy'),
+      sortValue: (subject) => subject.yearOfStudy,
       render: (subject) => t('common.studyYear', { year: subject.yearOfStudy }),
     },
     {
@@ -220,16 +223,26 @@ export function CataloguePage() {
     {
       key: 'code',
       header: t('catalogue.code'),
+      sortValue: (subject) => subject.code ?? '',
       render: (subject) => subject.code || t('catalogue.noCode'),
     },
     {
       key: 'name',
       header: t('papers.subject'),
+      sortValue: (subject) => localizedName(subject, language),
       render: (subject) => <span className="font-semibold text-slate-900">{localizedName(subject, language)}</span>,
     },
     {
       key: 'placements',
       header: t('catalogue.placements'),
+      sortValue: (subject) => subject.placements.length === 0
+        ? ''
+        : subject.placements.map((placement) =>
+          `${localizedName(
+            { nameSr: placement.majorNameSr, nameEn: placement.majorNameEn },
+            language,
+          )} ${placement.yearOfStudy}`,
+        ).join(', '),
       render: (subject) => subject.placements.length === 0
         ? <span className="text-amber-700">{t('catalogue.unattached')}</span>
         : (

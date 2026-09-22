@@ -134,7 +134,7 @@ function QueuedFileRow({
         type="button"
         aria-label={t('upload.moveUp', { name: file.name })}
         disabled={disabled || index === 0}
-        className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+        className="rounded p-1 text-slate-500 hover:bg-accent-wash disabled:opacity-30"
         onClick={() => onMove(-1)}
       >
         <ArrowUp className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
@@ -143,7 +143,7 @@ function QueuedFileRow({
         type="button"
         aria-label={t('upload.moveDown', { name: file.name })}
         disabled={disabled || index === total - 1}
-        className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
+        className="rounded p-1 text-slate-500 hover:bg-accent-wash disabled:opacity-30"
         onClick={() => onMove(1)}
       >
         <ArrowDown className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />

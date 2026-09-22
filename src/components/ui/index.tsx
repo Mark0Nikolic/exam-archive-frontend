@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { LoaderCircle, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronsUpDown, LoaderCircle, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type {
   ButtonHTMLAttributes,
@@ -9,7 +9,8 @@ import type {
   SelectHTMLAttributes,
   TextareaHTMLAttributes,
 } from 'react'
-import { cn } from '../../lib/utils'
+import { toAppLanguage } from '../../i18n'
+import { cn, localeCode } from '../../lib/utils'
 import type { PaperStatus } from '../../lib/types'
 
 export { FileDropZone } from './FileDropZone'
@@ -20,9 +21,9 @@ type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost'
 
 const buttonVariants: Record<ButtonVariant, string> = {
   primary: 'bg-indigo-600 text-white shadow-sm hover:bg-indigo-700 disabled:bg-indigo-300',
-  secondary: 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:text-slate-400',
+  secondary: 'border border-slate-300 bg-white text-slate-700 hover:bg-accent-wash disabled:text-slate-400',
   danger: 'bg-rose-600 text-white shadow-sm hover:bg-rose-700 disabled:bg-rose-300',
-  ghost: 'text-slate-600 hover:bg-slate-100 disabled:text-slate-300',
+  ghost: 'text-slate-600 hover:bg-accent-wash disabled:text-slate-300',
 }
 
 export function Button({
@@ -182,7 +183,7 @@ export function Modal({
           <button
             type="button"
             aria-label={t('common.close')}
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            className="rounded-lg p-2 text-slate-400 hover:bg-accent-wash hover:text-slate-700"
             onClick={onClose}
           >
             <X className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
@@ -199,6 +200,23 @@ export interface Column<T> {
   header: string
   className?: string
   render: (row: T) => ReactNode
+  sortValue?: (row: T) => string | number | null
+}
+
+type SortDirection = 'asc' | 'desc'
+
+function compareSortValues(
+  left: string | number | null,
+  right: string | number | null,
+  locale: string,
+) {
+  const leftEmpty = left === null || left === ''
+  const rightEmpty = right === null || right === ''
+  if (leftEmpty && rightEmpty) return 0
+  if (leftEmpty) return 1
+  if (rightEmpty) return -1
+  if (typeof left === 'number' && typeof right === 'number') return left - right
+  return String(left).localeCompare(String(right), locale, { numeric: true, sensitivity: 'base' })
 }
 
 export function DataTable<T>({
@@ -212,33 +230,71 @@ export function DataTable<T>({
   getRowKey: (row: T) => Key
   onRowClick?: (row: T) => void
 }) {
+  const { t, i18n } = useTranslation()
+  const [sort, setSort] = useState<{ key: string; direction: SortDirection } | null>(null)
+  const sortedRows = sortRows(rows, columns, sort, localeCode(toAppLanguage(i18n.language)))
+
+  const toggleSort = (key: string) => {
+    setSort((current) => {
+      if (!current || current.key !== key) return { key, direction: 'asc' }
+      if (current.direction === 'asc') return { key, direction: 'desc' }
+      return null
+    })
+  }
+
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[760px] border-collapse text-left">
           <thead className="bg-slate-50">
             <tr>
-              {columns.map((column) => (
-                <th
-                  key={column.key}
-                  className={cn(
-                    'border-b border-slate-200 px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-500',
-                    column.className,
-                  )}
-                >
-                  {column.header}
-                </th>
-              ))}
+              {columns.map((column) => {
+                const sortable = Boolean(column.header && column.sortValue)
+                const active = sort?.key === column.key ? sort.direction : null
+                return (
+                  <th
+                    key={column.key}
+                    aria-sort={active === 'asc' ? 'ascending' : active === 'desc' ? 'descending' : sortable ? 'none' : undefined}
+                    className={cn(
+                      'border-b border-slate-200 px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-500',
+                      column.className,
+                    )}
+                  >
+                    {sortable ? (
+                      <button
+                        type="button"
+                        className={cn(
+                          'inline-flex items-center gap-1 rounded-md px-1 py-0.5 transition-colors hover:bg-accent-wash hover:text-indigo-800',
+                          active && 'text-indigo-700',
+                        )}
+                        aria-label={t('common.sortBy', { column: column.header })}
+                        onClick={() => toggleSort(column.key)}
+                      >
+                        {column.header}
+                        {active === 'asc' ? (
+                          <ArrowUp className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
+                        ) : active === 'desc' ? (
+                          <ArrowDown className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
+                        ) : (
+                          <ChevronsUpDown className="h-3.5 w-3.5 opacity-40" strokeWidth={2} aria-hidden="true" />
+                        )}
+                      </button>
+                    ) : (
+                      column.header
+                    )}
+                  </th>
+                )
+              })}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {rows.map((row) => (
+            {sortedRows.map((row) => (
               <tr
                 key={getRowKey(row)}
                 onClick={() => onRowClick?.(row)}
                 className={cn(
-                  'transition hover:bg-slate-50',
-                  onRowClick && 'cursor-pointer focus-within:bg-slate-50',
+                  'transition hover:bg-accent-wash',
+                  onRowClick && 'cursor-pointer focus-within:bg-accent-wash',
                 )}
               >
                 {columns.map((column) => (
@@ -253,6 +309,30 @@ export function DataTable<T>({
       </div>
     </div>
   )
+}
+
+function sortRows<T>(
+  rows: T[],
+  columns: Column<T>[],
+  sort: { key: string; direction: SortDirection } | null,
+  locale: string,
+) {
+  if (!sort) return rows
+  const column = columns.find((item) => item.key === sort.key && item.sortValue)
+  if (!column?.sortValue) return rows
+  const direction = sort.direction === 'asc' ? 1 : -1
+  return rows
+    .map((row, index) => ({ row, index }))
+    .sort((left, right) => {
+      const leftValue = column.sortValue!(left.row)
+      const rightValue = column.sortValue!(right.row)
+      const leftEmpty = leftValue === null || leftValue === ''
+      const rightEmpty = rightValue === null || rightValue === ''
+      if (leftEmpty || rightEmpty) return compareSortValues(leftValue, rightValue, locale)
+      const result = compareSortValues(leftValue, rightValue, locale)
+      return result === 0 ? left.index - right.index : result * direction
+    })
+    .map((item) => item.row)
 }
 
 export function Pagination({
