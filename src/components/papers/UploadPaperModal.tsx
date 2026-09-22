@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, FileText, X } from 'lucide-react'
 import type { TFunction } from 'i18next'
@@ -45,14 +45,17 @@ function isPdfFile(file: File) {
 function UploadFilePreview({ file }: { file: File | null }) {
   const { t } = useTranslation()
   const pdf = file ? isPdfFile(file) : false
-  const previewUrl = useMemo(() => (pdf && file ? URL.createObjectURL(file) : ''), [file, pdf])
+  const [previewUrl, setPreviewUrl] = useState('')
 
-  useEffect(
-    () => () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl)
-    },
-    [previewUrl],
-  )
+  useEffect(() => {
+    if (!pdf || !file) {
+      setPreviewUrl('')
+      return
+    }
+    const url = URL.createObjectURL(file)
+    setPreviewUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [file, pdf])
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
@@ -340,7 +343,7 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
       title={result ? t('upload.uploadedTitle') : t('upload.title')}
       description={result ? t('upload.received') : undefined}
       onClose={close}
-      width="max-w-[92rem]"
+      width={result ? 'max-w-2xl' : 'max-w-[92rem]'}
     >
       {result ? (
         <div className="space-y-5 p-6">

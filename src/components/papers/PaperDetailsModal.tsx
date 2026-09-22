@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -62,17 +62,21 @@ export function PaperDetailsModal({
     retry: false,
   })
 
-  const previewUrl = useMemo(
-    () => preview.data ? URL.createObjectURL(preview.data.blob) : '',
-    [preview.data],
-  )
+  const [previewUrl, setPreviewUrl] = useState('')
 
-  useEffect(
-    () => () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl)
-    },
-    [previewUrl],
-  )
+  useEffect(() => {
+    const blob = preview.data?.blob
+    if (!blob) {
+      setPreviewUrl('')
+      return
+    }
+    const typed = blob.type.startsWith('image/') || blob.type === 'application/pdf'
+      ? blob
+      : new Blob([blob], { type: 'application/pdf' })
+    const url = URL.createObjectURL(typed)
+    setPreviewUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [preview.data])
 
   const approve = useMutation({
     mutationFn: approvePaper,
@@ -171,6 +175,14 @@ export function PaperDetailsModal({
                     onRetry={() => preview.refetch()}
                   />
                 </div>
+              ) : previewUrl && preview.data?.blob.type.startsWith('image/') ? (
+                <img
+                  src={previewUrl}
+                  alt={t('details.previewTitle', {
+                    subject: localizedPaperSubject(query.data, language),
+                  })}
+                  className="mx-auto max-h-[58vh] min-h-[240px] w-full object-contain bg-white"
+                />
               ) : previewUrl ? (
                 <iframe
                   src={previewUrl}
