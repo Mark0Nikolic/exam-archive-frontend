@@ -1,12 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { toAppLanguage } from '../../i18n'
 import { ApiError } from '../../lib/axios'
-import type { Major, Study, Subject } from '../../lib/types'
-import { fieldError, localizedName } from '../../lib/utils'
+import type { CatalogueSubject, Major, Study, Subject } from '../../lib/types'
+import { fieldError, localizedName, yearsOfStudyForStudy } from '../../lib/utils'
 import {
   attachSubject,
+  catalogueKeys,
   createMajor,
   createStudy,
   createSubject,
@@ -15,7 +16,8 @@ import {
   updateStudy,
   updateSubject,
 } from '../../services/catalogue'
-import { Button, Field, Input, Modal, Pagination, Select } from '../ui'
+import { getMajors, getStudies } from '../../services/lookups'
+import { Button, Field, Input, Modal, Select } from '../ui'
 
 function optional(value: string) {
   return value.trim() || null
@@ -217,7 +219,7 @@ export function SubjectFormModal({
   maximumYear: number
   placementYear?: number
   onClose: () => void
-  onSaved: () => void
+  onSaved: (yearOfStudy?: number) => void
 }) {
   const { t } = useTranslation()
   const [nameSr, setNameSr] = useState(subject?.nameSr ?? '')
@@ -246,7 +248,7 @@ export function SubjectFormModal({
         yearOfStudy: Number(year),
       })
     },
-    onSuccess: onSaved,
+    onSuccess: () => onSaved(majorId ? Number(year) : undefined),
   })
 
   const submit = async (event: React.FormEvent) => {
@@ -312,41 +314,142 @@ export function SubjectFormModal({
   )
 }
 
+function subjectOptionLabel(subject: CatalogueSubject, language: ReturnType<typeof toAppLanguage>) {
+  const name = localizedName(subject, language)
+  return subject.code ? `${subject.code} — ${name}` : name
+}
+
 export function AttachSubjectModal({
-  majorId,
-  maximumYear,
-  attachedSubjectIds,
+  defaultMajorId,
+  defaultYear,
   onClose,
   onSaved,
 }: {
-  majorId: number
-  maximumYear: number
-  attachedSubjectIds: number[]
+  defaultMajorId: number
+  defaultYear?: number
   onClose: () => void
-  onSaved: () => void
+  onSaved: (yearOfStudy?: number) => void
 }) {
   const { t, i18n } = useTranslation()
   const language = toAppLanguage(i18n.resolvedLanguage ?? i18n.language)
   const [search, setSearch] = useState('')
-  const [page, setPage] = useState(1)
-  const [subjectId, setSubjectId] = useState('')
-  const [year, setYear] = useState('1')
+  const [query, setQuery] = useState('')
+  const [listOpen, setListOpen] = useState(false)
+  const [selected, setSelected] = useState<CatalogueSubject | null>(null)
+  const [major1, setMajor1] = useState(String(defaultMajorId))
+  const [year1, setYear1] = useState(String(defaultYear ?? 1))
+  const [major2, setMajor2] = useState('')
+  const [year2, setYear2] = useState(String(defaultYear ?? 1))
   const [generalError, setGeneralError] = useState('')
-  const subjects = useQuery({
-    queryKey: ['lookups', 'subject-catalogue', search, page],
-    queryFn: () => getCatalogueSubjects(search, page),
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setQuery(search.trim()), 200)
+    return () => window.clearTimeout(timer)
+  }, [search])
+
+  const studies = useQuery({
+    queryKey: catalogueKeys.studies,
+    queryFn: getStudies,
+    staleTime: 10 * 60 * 1000,
   })
-  const available = (subjects.data?.data ?? []).filter(
-    (subject) => !attachedSubjectIds.includes(subject.id),
-  )
+  const majors = useQuery({
+    queryKey: ['lookups', 'majors', 'all', studies.data?.data.map((study) => study.id).join(',')],
+    queryFn: async () => {
+      const pages = await Promise.all((studies.data?.data ?? []).map((study) => getMajors(study.id)))
+      return pages.flatMap((page) => page.data)
+    },
+    enabled: (studies.data?.data.length ?? 0) > 0,
+  })
+  const subjects = useQuery({
+    queryKey: ['lookups', 'subject-catalogue', query, 1],
+    queryFn: () => getCatalogueSubjects(query, 1),
+    enabled: listOpen,
+  })
+
+  const yearsFor = (majorId: string) => {
+    const major = majors.data?.find((item) => String(item.id) === majorId)
+    const study = studies.data?.data.find((item) => item.id === major?.studiesId)
+    return yearsOfStudyForStudy(study)
+  }
+
+  const changeMajor = (slot: 1 | 2, value: string) => {
+    const years = yearsFor(value)
+    const nextYear = (current: string) => (years.includes(Number(current)) ? current : String(years[0] ?? 1))
+    if (slot === 1) {
+      setMajor1(value)
+      setYear1(nextYear)
+    } else {
+      setMajor2(value)
+      setYear2(nextYear)
+    }
+  }
+
+  const chooseSubject = (subject: CatalogueSubject) => {
+    setSelected(subject)
+    setSearch(subjectOptionLabel(subject, language))
+    setListOpen(false)
+    const [first, second] = subject.placements
+    if (first) {
+      setMajor1(String(first.majorId))
+      setYear1(String(first.yearOfStudy))
+    }
+    if (second) {
+      setMajor2(String(second.majorId))
+      setYear2(String(second.yearOfStudy))
+    }
+  }
+
   const mutation = useMutation({
-    mutationFn: () => attachSubject({
-      majorId,
-      subjectId: Number(subjectId),
-      yearOfStudy: Number(year),
-    }),
-    onSuccess: onSaved,
+    mutationFn: async () => {
+      if (!selected) return 0
+      const pairs = [
+        { majorId: Number(major1), yearOfStudy: Number(year1) },
+        { majorId: Number(major2), yearOfStudy: Number(year2) },
+      ]
+      let changes = 0
+      for (const pair of pairs) {
+        const existing = selected.placements.find((placement) => placement.majorId === pair.majorId)
+        if (existing?.yearOfStudy === pair.yearOfStudy) continue
+        changes += 1
+        if (existing) {
+          await updateSubject({
+            id: selected.id,
+            nameSr: selected.nameSr,
+            nameEn: selected.nameEn,
+            code: selected.code,
+            majorId: pair.majorId,
+            yearOfStudy: pair.yearOfStudy,
+          })
+        } else {
+          await attachSubject({
+            majorId: pair.majorId,
+            subjectId: selected.id,
+            yearOfStudy: pair.yearOfStudy,
+          })
+        }
+      }
+      return changes
+    },
+    onSuccess: (changes) => {
+      if (changes === 0) {
+        setGeneralError(t('catalogue.alreadyLinked'))
+        return
+      }
+      const remembered = [Number(major1), Number(major2)].includes(defaultMajorId)
+        ? (String(defaultMajorId) === major1 ? Number(year1) : Number(year2))
+        : Number(year1)
+      onSaved(remembered)
+    },
     onError: (error) => setGeneralError(apiMessage(error, t('catalogue.attachError'))),
+  })
+
+  const majorOptions = (majors.data ?? []).map((major) => {
+    const study = studies.data?.data.find((item) => item.id === major.studiesId)
+    const studyName = study ? localizedName(study, language) : ''
+    return {
+      id: major.id,
+      label: studyName ? `${localizedName(major, language)} — ${studyName}` : localizedName(major, language),
+    }
   })
 
   return (
@@ -355,53 +458,99 @@ export function AttachSubjectModal({
         onSubmit={(event) => {
           event.preventDefault()
           setGeneralError('')
-          if (!subjectId) {
+          if (!selected) {
             setGeneralError(t('catalogue.validation.subjectRequired'))
+            return
+          }
+          if (!major1 || !major2) {
+            setGeneralError(t('catalogue.validation.majorRequired'))
+            return
+          }
+          if (major1 === major2) {
+            setGeneralError(t('catalogue.majorsMustDiffer'))
             return
           }
           mutation.mutate()
         }}
       >
         <div className="space-y-5 p-5 sm:p-6">
-          <Field label={t('catalogue.searchSubjects')}>
-            <Input
-              value={search}
-              placeholder={t('catalogue.searchPlaceholder')}
-              onChange={(event) => {
-                setSearch(event.target.value)
-                setPage(1)
-                setSubjectId('')
-              }}
-            />
-          </Field>
           <Field label={t('papers.subject')} required>
-            <Select value={subjectId} disabled={subjects.isPending} onChange={(event) => setSubjectId(event.target.value)}>
-              <option value="">{t('catalogue.selectExistingSubject')}</option>
-              {available.map((subject) => (
-                <option key={subject.id} value={subject.id}>
-                  {subject.code ? `${subject.code} — ` : ''}{localizedName(subject, language)}
-                </option>
-              ))}
-            </Select>
+            <span className="relative block">
+              <Input
+                value={search}
+                placeholder={t('catalogue.searchPlaceholder')}
+                autoComplete="off"
+                role="combobox"
+                aria-expanded={listOpen}
+                aria-controls="attach-subject-results"
+                onFocus={() => setListOpen(true)}
+                onBlur={() => setListOpen(false)}
+                onChange={(event) => {
+                  setSearch(event.target.value)
+                  setSelected(null)
+                  setListOpen(true)
+                }}
+              />
+              {listOpen && (
+                <div
+                  id="attach-subject-results"
+                  role="listbox"
+                  className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+                >
+                  {subjects.isPending ? (
+                    <p className="px-3 py-2 text-sm text-slate-500">{t('common.loading')}</p>
+                  ) : (subjects.data?.data.length ?? 0) === 0 ? (
+                    <p className="px-3 py-2 text-sm text-slate-500">{t('catalogue.searchNoResults')}</p>
+                  ) : subjects.data?.data.map((subject) => (
+                    <button
+                      key={subject.id}
+                      type="button"
+                      role="option"
+                      className="flex w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-accent-wash"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => chooseSubject(subject)}
+                    >
+                      {subjectOptionLabel(subject, language)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </span>
           </Field>
-          <Field label={t('papers.yearOfStudy')} required>
-            <Select value={year} onChange={(event) => setYear(event.target.value)}>
-              {Array.from({ length: maximumYear }, (_, index) => index + 1).map((value) => (
-                <option key={value} value={value}>{t('common.studyYear', { year: value })}</option>
-              ))}
-            </Select>
-          </Field>
-          {subjects.data && subjects.data.meta.totalPages > 1 && (
-            <Pagination
-              page={page}
-              totalPages={subjects.data.meta.totalPages}
-              totalItems={subjects.data.meta.totalItems}
-              onChange={(nextPage) => {
-                setPage(nextPage)
-                setSubjectId('')
-              }}
-            />
+          {selected && selected.placements.length > 0 && (
+            <p className="text-sm text-slate-500">
+              {selected.placements.map((placement) =>
+                `${localizedName({ nameSr: placement.majorNameSr, nameEn: placement.majorNameEn }, language)} (${t('common.studyYear', { year: placement.yearOfStudy })})`,
+              ).join(', ')}
+            </p>
           )}
+          {([1, 2] as const).map((slot) => {
+            const majorId = slot === 1 ? major1 : major2
+            const year = slot === 1 ? year1 : year2
+            return (
+              <div key={slot} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem]">
+                <Field label={t(slot === 1 ? 'catalogue.majorOne' : 'catalogue.majorTwo')} required>
+                  <Select value={majorId} disabled={majors.isPending} onChange={(event) => changeMajor(slot, event.target.value)}>
+                    <option value="">{t('catalogue.noMajors')}</option>
+                    {majorOptions.map((major) => (
+                      <option key={major.id} value={major.id}>{major.label}</option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label={t('papers.yearOfStudy')} required>
+                  <Select
+                    value={year}
+                    disabled={!majorId}
+                    onChange={(event) => (slot === 1 ? setYear1(event.target.value) : setYear2(event.target.value))}
+                  >
+                    {yearsFor(majorId).map((value) => (
+                      <option key={value} value={value}>{t('common.studyYear', { year: value })}</option>
+                    ))}
+                  </Select>
+                </Field>
+              </div>
+            )
+          })}
           {generalError && <p role="alert" className="text-sm text-rose-700">{generalError}</p>}
         </div>
         <div className="flex justify-end gap-3 border-t border-slate-200 px-5 py-4 sm:px-6">

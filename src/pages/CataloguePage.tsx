@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { BookOpen, FileText, Link, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -37,6 +37,8 @@ import {
 import { getMajors, getStudies, getSubjects } from '../services/lookups'
 
 const toNumber = (value: string | null) => (value ? Number(value) : undefined)
+const catalogueSelectionKey = 'exam-archive.catalogue'
+const rememberedKeys = ['studiesId', 'majorId', 'yearOfStudy', 'view'] as const
 
 type SubjectEditor = {
   subject?: Pick<Subject, 'id' | 'code' | 'nameSr' | 'nameEn'>
@@ -63,6 +65,37 @@ export function CataloguePage() {
   const [attachOpen, setAttachOpen] = useState(false)
   const [actionError, setActionError] = useState('')
   const [actionBusy, setActionBusy] = useState(false)
+  const skipSelectionPersist = useRef(true)
+
+  useEffect(() => {
+    if (skipSelectionPersist.current) {
+      skipSelectionPersist.current = false
+      const hasSelection = rememberedKeys.some((key) => searchParams.has(key))
+      if (hasSelection) return
+      try {
+        const saved = JSON.parse(sessionStorage.getItem(catalogueSelectionKey) ?? '') as Record<string, string>
+        if (!saved || typeof saved !== 'object') return
+        setSearchParams((current) => {
+          if (rememberedKeys.some((key) => current.has(key))) return current
+          const next = new URLSearchParams(current)
+          for (const key of rememberedKeys) {
+            if (saved[key]) next.set(key, saved[key])
+          }
+          return next
+        }, { replace: true })
+      } catch {
+        // Ignore a missing or unreadable saved selection.
+      }
+      return
+    }
+
+    const snapshot: Record<string, string> = {}
+    for (const key of rememberedKeys) {
+      const value = searchParams.get(key)
+      if (value) snapshot[key] = value
+    }
+    sessionStorage.setItem(catalogueSelectionKey, JSON.stringify(snapshot))
+  }, [searchParams, setSearchParams])
 
   const setCatalogueParams = (mutate: (next: URLSearchParams) => void) => {
     setSearchParams((current) => {
@@ -131,6 +164,15 @@ export function CataloguePage() {
 
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: catalogueKeys.all })
+  }
+
+  const rememberYear = (savedYear?: number) => {
+    if (!savedYear) return
+    setCatalogueParams((next) => {
+      next.set('yearOfStudy', String(savedYear))
+      if (effectiveStudyId) next.set('studiesId', String(effectiveStudyId))
+      if (effectiveMajorId) next.set('majorId', String(effectiveMajorId))
+    })
   }
 
   const runDestructiveAction = async (action: () => Promise<void>) => {
@@ -483,6 +525,7 @@ export function CataloguePage() {
                 <Button onClick={() => setSubjectEditor({
                   majorId: selectedMajor.id,
                   maximumYear: selectedStudy?.yearsOfStudy ?? 1,
+                  placementYear: yearOfStudy,
                 })}>
                   <Plus className="h-4 w-4" aria-hidden="true" />{t('catalogue.addSubject')}
                 </Button>
@@ -597,20 +640,21 @@ export function CataloguePage() {
         <SubjectFormModal
           {...subjectEditor}
           onClose={() => setSubjectEditor(null)}
-          onSaved={async () => {
+          onSaved={async (savedYear) => {
             await refresh()
+            if (!subjectEditor.subject) rememberYear(savedYear)
             setSubjectEditor(null)
           }}
         />
       )}
       {attachOpen && selectedMajor && (
         <AttachSubjectModal
-          majorId={selectedMajor.id}
-          maximumYear={selectedStudy?.yearsOfStudy ?? 1}
-          attachedSubjectIds={subjects.data?.data.map((subject) => subject.id) ?? []}
+          defaultMajorId={selectedMajor.id}
+          defaultYear={yearOfStudy}
           onClose={() => setAttachOpen(false)}
-          onSaved={async () => {
+          onSaved={async (savedYear) => {
             await refresh()
+            rememberYear(savedYear)
             setAttachOpen(false)
           }}
         />
