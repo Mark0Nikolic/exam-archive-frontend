@@ -11,7 +11,7 @@ import type { ExamType } from '../../lib/types'
 import { cn, compareLocalizedNames, fieldError, formatBytes, localizedName, monthNames, yearsOfStudyForStudy } from '../../lib/utils'
 import { getMajors, getStudies, getSubjects } from '../../services/lookups'
 import { getPaper, paperKeys, uploadPaper } from '../../services/papers'
-import { Button, Field, FileDropZone, Input, Modal, Select } from '../ui'
+import { Button, Field, FileDropZone, Input, Modal, Select, useWarningDialog } from '../ui'
 import { PaperQuestionsPanel } from './PaperQuestionsPanel'
 
 interface FormState {
@@ -209,6 +209,7 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [generalError, setGeneralError] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
+  const { ask, notify, dialog: warningDialog } = useWarningDialog()
 
   const studies = useQuery({
     queryKey: ['lookups', 'studies'],
@@ -278,6 +279,7 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
     const nextErrors = validate(form, t)
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
+    if (!(await ask(t('upload.confirm')))) return
 
     try {
       await mutation.mutateAsync({
@@ -288,6 +290,10 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
         year: Number(form.year),
       })
     } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        await notify(error.message)
+        return
+      }
       if (error instanceof ApiError) {
         setErrors({
           subjectId: fieldError(error.errors, 'SubjectId') ?? '',
@@ -338,6 +344,7 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
   const parseError = uploaded.data?.parseError
 
   return (
+    <>
     <Modal
       open={open}
       title={result ? t('upload.uploadedTitle') : t('upload.title')}
@@ -546,5 +553,7 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
         </form>
       )}
     </Modal>
+    {warningDialog}
+    </>
   )
 }

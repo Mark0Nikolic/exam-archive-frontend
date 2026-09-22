@@ -15,7 +15,7 @@ import {
   previewPaper,
   rejectPaper,
 } from '../../services/papers'
-import { Button, ErrorState, Field, LoadingState, Modal, StatusBadge, Textarea } from '../ui'
+import { Button, ErrorState, Field, LoadingState, Modal, StatusBadge, Textarea, useWarningDialog } from '../ui'
 import { PaperQuestionsPanel } from './PaperQuestionsPanel'
 
 export function PaperDetailsModal({
@@ -36,6 +36,7 @@ export function PaperDetailsModal({
   const [reason, setReason] = useState('')
   const [actionError, setActionError] = useState('')
   const [fileError, setFileError] = useState('')
+  const { ask, notify, dialog: warningDialog } = useWarningDialog()
 
   if (paperId !== statePaperId) {
     setStatePaperId(paperId)
@@ -84,8 +85,13 @@ export function PaperDetailsModal({
       queryClient.setQueryData(paperKeys.detail(paper.id), paper)
       await queryClient.invalidateQueries({ queryKey: paperKeys.all })
     },
-    onError: (error) =>
-      setActionError(error instanceof ApiError ? error.message : t('pending.approveError')),
+    onError: (error) => {
+      if (error instanceof ApiError && error.status === 409) {
+        void notify(error.message)
+        return
+      }
+      setActionError(error instanceof ApiError ? error.message : t('pending.approveError'))
+    },
   })
 
   const reject = useMutation({
@@ -94,10 +100,13 @@ export function PaperDetailsModal({
       await queryClient.invalidateQueries({ queryKey: paperKeys.all })
       onClose()
     },
-    onError: (error) =>
-      setActionError(
-        error instanceof ApiError ? error.message : t('pending.rejectError'),
-      ),
+    onError: (error) => {
+      if (error instanceof ApiError && error.status === 409) {
+        void notify(error.message)
+        return
+      }
+      setActionError(error instanceof ApiError ? error.message : t('pending.rejectError'))
+    },
   })
 
   const download = useMutation({
@@ -132,19 +141,20 @@ export function PaperDetailsModal({
   const isBusy = approve.isPending || reject.isPending
   const previewIsWordOnly = preview.isError && isUnavailablePdf(preview.error)
 
-  const submitReject = () => {
+  const submitReject = async () => {
     if (!query.data) return
     const trimmed = reason.trim()
     if (trimmed.length > 0 && (trimmed.length < 3 || trimmed.length > 500)) {
       setActionError(t('details.reasonOptionalValidation'))
       return
     }
-    if (!window.confirm(t('pending.rejectConfirm', { id: query.data.id }))) return
+    if (!(await ask(t('pending.rejectConfirm', { id: query.data.id })))) return
     setActionError('')
     reject.mutate({ id: query.data.id, reason: trimmed })
   }
 
   return (
+    <>
     <Modal
       open={paperId !== null}
       title={query.data ? localizedPaperSubject(query.data, language) : t('details.title')}
@@ -295,9 +305,11 @@ export function PaperDetailsModal({
                     <Button
                       disabled={isBusy}
                       onClick={() => {
-                        if (!window.confirm(t('pending.approveConfirm', { id: query.data.id }))) return
-                        setActionError('')
-                        approve.mutate(query.data.id)
+                        void (async () => {
+                          if (!(await ask(t('pending.approveConfirm', { id: query.data.id })))) return
+                          setActionError('')
+                          approve.mutate(query.data.id)
+                        })()
                       }}
                     >
                       {approve.isPending ? t('details.approving') : t('pending.approve')}
@@ -310,5 +322,7 @@ export function PaperDetailsModal({
         )}
       </div>
     </Modal>
+    {warningDialog}
+    </>
   )
 }

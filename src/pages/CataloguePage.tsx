@@ -20,6 +20,7 @@ import {
   LoadingState,
   Pagination,
   Select,
+  useWarningDialog,
 } from '../components/ui'
 import type { Column } from '../components/ui'
 import { toAppLanguage } from '../i18n'
@@ -70,6 +71,7 @@ export function CataloguePage() {
   const [attachOpen, setAttachOpen] = useState(false)
   const [actionError, setActionError] = useState('')
   const [actionBusy, setActionBusy] = useState(false)
+  const { ask, notify, dialog: warningDialog } = useWarningDialog()
   const skipSelectionPersist = useRef(true)
 
   useEffect(() => {
@@ -207,14 +209,20 @@ export function CataloguePage() {
       await action()
       await refresh()
     } catch (error) {
-      setActionError(error instanceof ApiError ? error.message : t('catalogue.actionError'))
+      if (error instanceof ApiError && error.status === 409) {
+        await notify(error.message)
+      } else {
+        setActionError(error instanceof ApiError ? error.message : t('catalogue.actionError'))
+      }
     } finally {
       setActionBusy(false)
     }
   }
 
   const confirmAction = (message: string, action: () => Promise<void>) => {
-    if (window.confirm(message)) void runDestructiveAction(action)
+    void ask(message).then((accepted) => {
+      if (accepted) void runDestructiveAction(action)
+    })
   }
 
   const subjectColumns: Column<Subject>[] = [
@@ -754,6 +762,7 @@ export function CataloguePage() {
           }}
         />
       )}
+      {warningDialog}
     </div>
   )
 }

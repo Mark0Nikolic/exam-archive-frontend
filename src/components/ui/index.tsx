@@ -19,6 +19,7 @@ import type { PaperStatus } from '../../lib/types'
 
 export { FileDropZone } from './FileDropZone'
 export { ActionMenu } from './ActionMenu'
+export { WarningDialog, useWarningDialog } from './WarningDialog'
 export type { ActionMenuItem } from './ActionMenu'
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost'
@@ -389,7 +390,7 @@ export function Modal({
         aria-labelledby={title ? 'modal-title' : undefined}
         aria-label={title ? undefined : ariaLabel}
         className={cn(
-          'max-h-[94vh] w-full rounded-t-2xl bg-white shadow-2xl transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none sm:rounded-2xl',
+          'max-h-[94vh] w-full origin-center rounded-t-2xl bg-white shadow-2xl transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none sm:rounded-2xl',
           scrollable ? 'overflow-y-auto' : 'flex min-h-0 flex-col overflow-hidden',
           visible
             ? 'translate-y-0 scale-100 opacity-100'

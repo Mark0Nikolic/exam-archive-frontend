@@ -17,6 +17,7 @@ import {
   Select,
   StatusBadge,
   Textarea,
+  useWarningDialog,
 } from '../components/ui'
 import type { Column } from '../components/ui'
 import { FilterPanel } from '../components/ui/FilterPanel'
@@ -39,6 +40,7 @@ function RejectModal({
   const queryClient = useQueryClient()
   const [reason, setReason] = useState('')
   const [error, setError] = useState('')
+  const { ask, notify, dialog: warningDialog } = useWarningDialog()
   const mutation = useMutation({
     mutationFn: rejectPaper,
     onSuccess: async () => {
@@ -57,10 +59,14 @@ function RejectModal({
       return
     }
     if (!paper) return
-    if (!window.confirm(t('pending.rejectConfirm', { id: paper.id }))) return
+    if (!(await ask(t('pending.rejectConfirm', { id: paper.id })))) return
     try {
       await mutation.mutateAsync({ id: paper.id, reason: trimmed })
     } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 409) {
+        await notify(caught.message)
+        return
+      }
       setError(
         caught instanceof ApiError
           ? fieldError(caught.errors, 'Reason') ?? caught.message
@@ -70,6 +76,7 @@ function RejectModal({
   }
 
   return (
+    <>
     <Modal
       open={paper !== null}
       title={t('pending.rejectTitle')}
@@ -107,6 +114,8 @@ function RejectModal({
         </div>
       </form>
     </Modal>
+    {warningDialog}
+    </>
   )
 }
 
@@ -122,6 +131,7 @@ export function PendingPapersPage() {
   const [editPaperId, setEditPaperId] = useState<number | null>(null)
   const [paperToReject, setPaperToReject] = useState<Paper | null>(null)
   const [actionError, setActionError] = useState('')
+  const { ask, notify, dialog: warningDialog } = useWarningDialog()
 
   const filters = {
     examType: (searchParams.get('examType') as ExamType | null) ?? undefined,
@@ -138,8 +148,13 @@ export function PendingPapersPage() {
   const approve = useMutation({
     mutationFn: approvePaper,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: paperKeys.all }),
-    onError: (error) =>
-      setActionError(error instanceof ApiError ? error.message : t('pending.approveError')),
+    onError: (error) => {
+      if (error instanceof ApiError && error.status === 409) {
+        void notify(error.message)
+        return
+      }
+      setActionError(error instanceof ApiError ? error.message : t('pending.approveError'))
+    },
   })
 
   const setFilter = (key: string, value?: string | number) => {
@@ -197,7 +212,9 @@ export function PendingPapersPage() {
             onClick={(event) => {
               event.stopPropagation()
               setActionError('')
-              if (window.confirm(t('pending.approveConfirm', { id: paper.id }))) approve.mutate(paper.id)
+              void ask(t('pending.approveConfirm', { id: paper.id })).then((accepted) => {
+                if (accepted) approve.mutate(paper.id)
+              })
             }}
           >
             {t('pending.approve')}
@@ -303,6 +320,7 @@ export function PendingPapersPage() {
       />
       <EditPaperModal paperId={editPaperId} onClose={() => setEditPaperId(null)} />
       <RejectModal paper={paperToReject} onClose={() => setPaperToReject(null)} />
+      {warningDialog}
     </div>
   )
 }
