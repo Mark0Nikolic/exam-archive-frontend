@@ -202,7 +202,10 @@ export function CataloguePage() {
     })
   }
 
-  const runDestructiveAction = async (action: () => Promise<void>) => {
+  const runDestructiveAction = async (
+    action: () => Promise<void>,
+    conflictMessage?: (error: ApiError) => string | undefined,
+  ) => {
     setActionBusy(true)
     setActionError('')
     try {
@@ -210,7 +213,7 @@ export function CataloguePage() {
       await refresh()
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
-        await notify(error.message)
+        await notify(conflictMessage?.(error) || error.message)
       } else {
         setActionError(error instanceof ApiError ? error.message : t('catalogue.actionError'))
       }
@@ -219,11 +222,20 @@ export function CataloguePage() {
     }
   }
 
-  const confirmAction = (message: string, action: () => Promise<void>) => {
+  const confirmAction = (
+    message: string,
+    action: () => Promise<void>,
+    conflictMessage?: (error: ApiError) => string | undefined,
+  ) => {
     void ask(message).then((accepted) => {
-      if (accepted) void runDestructiveAction(action)
+      if (accepted) void runDestructiveAction(action, conflictMessage)
     })
   }
+
+  const subjectHasPapersMessage = (subject: { nameSr: string; nameEn: string | null }) => (error: ApiError) =>
+    /still has papers/i.test(error.message)
+      ? t('catalogue.subjectHasPapers', { subject: localizedName(subject, language) })
+      : undefined
 
   const subjectColumns: Column<Subject>[] = [
     {
@@ -300,6 +312,7 @@ export function CataloguePage() {
               onSelect: () => confirmAction(
                 t('catalogue.deleteSubjectConfirm', { subject: localizedName(subject, language) }),
                 () => deleteSubject(subject.id),
+                subjectHasPapersMessage(subject),
               ),
             },
           ]}
@@ -393,6 +406,7 @@ export function CataloguePage() {
               onSelect: () => confirmAction(
                 t('catalogue.deleteSubjectConfirm', { subject: localizedName(subject, language) }),
                 () => deleteSubject(subject.id),
+                subjectHasPapersMessage(subject),
               ),
             },
           ]}

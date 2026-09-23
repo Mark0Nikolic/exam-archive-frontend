@@ -66,7 +66,7 @@ export function WarningDialog({
         role="alertdialog"
         aria-modal="true"
         aria-describedby="warning-dialog-message"
-        className={`w-full max-w-md origin-center rounded-2xl border border-white/70 bg-white/80 px-6 py-6 shadow-2xl shadow-slate-950/10 ring-1 ring-slate-200/60 backdrop-blur-md transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none ${
+        className={`w-full max-w-md origin-center rounded-2xl bg-white px-6 py-6 shadow-2xl transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none ${
           visible ? 'translate-y-0 scale-100 opacity-100' : 'translate-y-4 scale-100 opacity-0 sm:translate-y-0 sm:scale-[0.98]'
         }`}
       >
