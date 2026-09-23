@@ -66,11 +66,12 @@ export function PaperDetailsModal({
   const [previewUrl, setPreviewUrl] = useState('')
 
   useEffect(() => {
+    setPreviewUrl('')
+  }, [paperId])
+
+  useEffect(() => {
     const blob = preview.data?.blob
-    if (!blob) {
-      setPreviewUrl('')
-      return
-    }
+    if (!blob) return
     const typed = blob.type.startsWith('image/') || blob.type === 'application/pdf'
       ? blob
       : new Blob([blob], { type: 'application/pdf' })
@@ -172,8 +173,8 @@ export function PaperDetailsModal({
             onRetry={() => query.refetch()}
           />
         ) : (
-          <div className="grid min-h-0 flex-1 items-stretch gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)]">
-            <div className="min-h-[240px] overflow-hidden rounded-xl border border-slate-200 bg-slate-100 lg:min-h-0">
+          <div className="grid min-h-[58vh] flex-1 items-stretch gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)]">
+            <div className="h-[58vh] overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
               {preview.isPending ? (
                 <LoadingState label={t('details.previewLoading')} />
               ) : previewIsWordOnly ? (
@@ -193,7 +194,7 @@ export function PaperDetailsModal({
                   alt={t('details.previewTitle', {
                     subject: localizedPaperSubject(query.data, language),
                   })}
-                  className="mx-auto h-[58vh] w-full object-contain bg-white lg:h-full"
+                  className="mx-auto h-full w-full object-contain bg-white"
                 />
               ) : previewUrl ? (
                 <iframe
@@ -201,7 +202,7 @@ export function PaperDetailsModal({
                   title={t('details.previewTitle', {
                     subject: localizedPaperSubject(query.data, language),
                   })}
-                  className="h-[58vh] w-full bg-white lg:h-full"
+                  className="h-full w-full bg-white"
                 />
               ) : null}
             </div>

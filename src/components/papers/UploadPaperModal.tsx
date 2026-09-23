@@ -350,10 +350,17 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
       title={result ? t('upload.uploadedTitle') : t('upload.title')}
       description={result ? t('upload.received') : undefined}
       onClose={close}
-      width={result ? 'max-w-2xl' : 'max-w-[92rem]'}
+      width={result?.status === 'Approved' ? 'max-w-[92rem]' : result ? 'max-w-2xl' : 'max-w-[92rem]'}
     >
       {result ? (
-        <div className="space-y-5 p-6">
+        <div className={result.status === 'Approved'
+          ? 'grid items-start gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)] sm:p-6'
+          : 'space-y-5 p-6'}
+        >
+          {result.status === 'Approved' && (
+            <UploadFilePreview file={form.files[selectedIndex] ?? form.files[0] ?? null} />
+          )}
+          <div className={result.status === 'Approved' ? 'space-y-4 lg:max-h-[70vh] lg:overflow-y-auto lg:pr-1' : 'space-y-5'}>
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
             <p className="font-bold text-emerald-800">
               {t('upload.result', {
@@ -387,6 +394,7 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
           )}
           <div className="flex justify-end">
             <Button onClick={close}>{t('common.done')}</Button>
+          </div>
           </div>
         </div>
       ) : (
