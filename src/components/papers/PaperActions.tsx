@@ -7,7 +7,7 @@ import { ApiError } from '../../lib/axios'
 import type { Paper } from '../../lib/types'
 import { isStaff, localizedPaperSubject } from '../../lib/utils'
 import { deletePaper, downloadPaper, paperKeys } from '../../services/papers'
-import { ActionMenu } from '../ui'
+import { ActionMenu, useWarningDialog } from '../ui'
 
 export function PaperActions({
   paper,
@@ -27,6 +27,7 @@ export function PaperActions({
   const queryClient = useQueryClient()
   const language = toAppLanguage(i18n.resolvedLanguage ?? i18n.language)
   const subject = localizedPaperSubject(paper, language)
+  const { ask, dialog: warningDialog } = useWarningDialog()
   const download = useMutation({
     mutationFn: () => downloadPaper(paper.id),
     onSuccess: ({ blob, fileName }) => {
@@ -55,6 +56,7 @@ export function PaperActions({
   })
 
   return (
+    <>
     <ActionMenu
       label={t('papers.openActions', { subject })}
       items={[
@@ -90,14 +92,18 @@ export function PaperActions({
                 danger: true,
                 disabled: remove.isPending,
                 onSelect: () => {
-                  if (!window.confirm(t('papers.deleteConfirm', { subject, id: paper.id }))) return
-                  onError('')
-                  remove.mutate()
+                  void ask(t('papers.deleteConfirm', { subject, id: paper.id })).then((accepted) => {
+                    if (!accepted) return
+                    onError('')
+                    remove.mutate()
+                  })
                 },
               },
             ]
           : []),
       ]}
     />
+    {warningDialog}
+    </>
   )
 }

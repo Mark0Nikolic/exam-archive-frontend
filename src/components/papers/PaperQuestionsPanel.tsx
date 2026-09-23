@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState, type ButtonHTMLAttributes } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, Link, Pencil, RefreshCw, Trash2 } from 'lucide-react'
+import { ChevronDown, CircleAlert, Link, Pencil, RefreshCw, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../hooks/useAuth'
 import { toAppLanguage } from '../../i18n'
@@ -16,7 +16,7 @@ import {
   reparsePaper,
   updatePaperQuestion,
 } from '../../services/papers'
-import { Button, ErrorState, Field, Input, LoadingState, Textarea } from '../ui'
+import { Button, ErrorState, Field, Input, LoadingState, Textarea, useWarningDialog } from '../ui'
 
 function SquareAction({
   label,
@@ -124,6 +124,7 @@ export function PaperQuestionsPanel({
   const [editLabel, setEditLabel] = useState('')
   const [editText, setEditText] = useState('')
   const [actionError, setActionError] = useState('')
+  const { ask, dialog: warningDialog } = useWarningDialog()
   const status = parseStatus ?? 'NotQueued'
   const loadText = enabled && status === 'Parsed' && (questionCount === undefined || questionCount > 0)
   const questions = useQuery({
@@ -206,6 +207,7 @@ export function PaperQuestionsPanel({
   }
 
   return (
+    <>
     <div>
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-sm font-bold text-slate-800">
@@ -220,9 +222,11 @@ export function PaperQuestionsPanel({
               label={t('details.reparseAgain')}
               disabled={busy}
               onClick={() => {
-                if (!window.confirm(t('details.reparseConfirm'))) return
-                setActionError('')
-                reparse.mutate()
+                void ask(t('details.reparseConfirm')).then((accepted) => {
+                  if (!accepted) return
+                  setActionError('')
+                  reparse.mutate()
+                })
               }}
             >
               <RefreshCw className={`h-4 w-4 ${reparse.isPending ? 'animate-spin' : ''}`} aria-hidden="true" />
@@ -231,9 +235,11 @@ export function PaperQuestionsPanel({
               label={t('details.linkQuestions')}
               disabled={busy || selectedOrdinals.length < 2}
               onClick={() => {
-                if (!window.confirm(t('details.mergeQuestionsConfirm'))) return
-                setActionError('')
-                merge.mutate({ id: paperId, ordinals: selectedOrdinals })
+                void ask(t('details.mergeQuestionsConfirm')).then((accepted) => {
+                  if (!accepted) return
+                  setActionError('')
+                  merge.mutate({ id: paperId, ordinals: selectedOrdinals })
+                })
               }}
             >
               <Link className="h-4 w-4" aria-hidden="true" />
@@ -279,14 +285,15 @@ export function PaperQuestionsPanel({
             <ul className="divide-y divide-slate-100">
               {list.map((question, index) => {
                 const open = openIndexes.includes(index)
-                const sittings = question.appearances.filter((sitting) => sitting.paperId !== paperId)
+                const sittings = (question.appearances ?? []).filter((sitting) => sitting.paperId !== paperId)
+                const seenBefore = sittings.length > 0
                 return (
                   <li key={`${question.questionId}-${question.ordinal}`}>
-                    <div className="flex items-start gap-2 px-4 py-2.5">
+                    <div className="flex items-center gap-3 px-4 py-2.5">
                       {staffUser && (
                         <input
                           type="checkbox"
-                          className="mt-2 h-4 w-4 shrink-0 rounded border-slate-300 text-indigo-600"
+                          className="m-0 size-5 shrink-0 rounded border-slate-300 accent-indigo-600"
                           checked={selectedOrdinals.includes(question.ordinal)}
                           aria-label={t('details.selectQuestion', { label: question.label })}
                           onChange={() => toggleSelected(question.ordinal)}
@@ -298,12 +305,15 @@ export function PaperQuestionsPanel({
                         className="flex min-h-11 min-w-0 flex-1 items-center justify-between gap-3 text-left"
                         onClick={() => toggle(index)}
                       >
-                        <span className="flex min-w-0 flex-wrap items-center gap-2">
+                        <span className="flex min-w-0 items-center gap-2">
                           <span className="text-sm font-semibold text-slate-900">{question.label}</span>
-                          {question.appearedRecently && (
-                            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
-                              {t('details.appearedRecently')}
-                            </span>
+                          {seenBefore && (
+                            <CircleAlert
+                              className="size-5 shrink-0 text-amber-500"
+                              strokeWidth={1.8}
+                              aria-label={t('details.appearedRecently')}
+                              role="img"
+                            />
                           )}
                         </span>
                         <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-indigo-700">
@@ -316,7 +326,7 @@ export function PaperQuestionsPanel({
                       </button>
                     </div>
                     {open && (
-                      <div className="space-y-3 px-4 pb-3">
+                      <div className={`space-y-3 pr-4 pb-3 ${staffUser ? 'pl-12' : 'pl-4'}`}>
                         {editingOrdinal === question.ordinal ? (
                           <form
                             className="space-y-3"
@@ -357,26 +367,31 @@ export function PaperQuestionsPanel({
                         )}
                         {sittings.length > 0 && (
                           <div>
-                            <p className="text-xs font-medium uppercase text-slate-500">{t('details.otherSittings')}</p>
-                            <ul className="mt-1.5 space-y-1">
+                            <p className="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                              {t('details.otherSittings')}
+                            </p>
+                            <ul className="mt-2 space-y-1">
                               {sittings.map((sitting) => {
-                                const label = t('details.sitting', {
-                                  month: months[sitting.month - 1],
-                                  year: sitting.year,
-                                  examType: t(`common.examTypes.${sitting.examType}`),
-                                })
+                                const when = `${months[sitting.month - 1]} ${sitting.year}`
+                                const examType = t(`common.examTypes.${sitting.examType}`)
+                                const body = (
+                                  <>
+                                    <span className="font-semibold">{when}</span>
+                                    <span className="font-normal"> · {examType}</span>
+                                  </>
+                                )
                                 return (
                                   <li key={`${sitting.paperId}-${sitting.ordinal}`}>
                                     {onOpenPaper ? (
                                       <button
                                         type="button"
-                                        className="text-sm font-semibold text-indigo-700 hover:underline"
+                                        className="text-sm text-indigo-700 hover:underline"
                                         onClick={() => onOpenPaper(sitting.paperId)}
                                       >
-                                        {label}
+                                        {body}
                                       </button>
                                     ) : (
-                                      <span className="text-sm text-slate-600">{label}</span>
+                                      <span className="text-sm text-slate-700">{body}</span>
                                     )}
                                   </li>
                                 )
@@ -398,9 +413,11 @@ export function PaperQuestionsPanel({
                               variant="danger"
                               disabled={busy}
                               onClick={() => {
-                                if (!window.confirm(t('details.deleteQuestionConfirm'))) return
-                                setActionError('')
-                                remove.mutate({ id: paperId, ordinal: question.ordinal })
+                                void ask(t('details.deleteQuestionConfirm')).then((accepted) => {
+                                  if (!accepted) return
+                                  setActionError('')
+                                  remove.mutate({ id: paperId, ordinal: question.ordinal })
+                                })
                               }}
                             >
                               <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -417,5 +434,7 @@ export function PaperQuestionsPanel({
         )}
       </div>
     </div>
+    {warningDialog}
+    </>
   )
 }
