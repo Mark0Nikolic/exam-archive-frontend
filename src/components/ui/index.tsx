@@ -391,7 +391,7 @@ export function Modal({
         aria-label={title ? undefined : ariaLabel}
         className={cn(
           'max-h-[94vh] w-full origin-center rounded-t-2xl bg-white shadow-2xl transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none sm:rounded-2xl',
-          scrollable ? 'overflow-y-auto' : 'flex min-h-0 flex-col overflow-hidden',
+          scrollable ? 'overflow-y-auto' : 'flex h-[94vh] min-h-0 flex-col overflow-hidden',
           visible
             ? 'translate-y-0 scale-100 opacity-100'
             : 'translate-y-4 scale-100 opacity-0 sm:translate-y-0 sm:scale-[0.98]',

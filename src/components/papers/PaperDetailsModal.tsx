@@ -173,8 +173,8 @@ export function PaperDetailsModal({
             onRetry={() => query.refetch()}
           />
         ) : (
-          <div className="grid min-h-[58vh] flex-1 items-stretch gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)]">
-            <div className="h-[58vh] overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+          <div className="grid min-h-0 flex-1 items-stretch gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)] lg:grid-rows-[minmax(0,1fr)]">
+            <div className="relative h-[58vh] min-h-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100 lg:h-full">
               {preview.isPending ? (
                 <LoadingState label={t('details.previewLoading')} />
               ) : previewIsWordOnly ? (
@@ -194,7 +194,7 @@ export function PaperDetailsModal({
                   alt={t('details.previewTitle', {
                     subject: localizedPaperSubject(query.data, language),
                   })}
-                  className="mx-auto h-full w-full object-contain bg-white"
+                  className="absolute inset-0 h-full w-full object-contain bg-white"
                 />
               ) : previewUrl ? (
                 <iframe
@@ -202,7 +202,7 @@ export function PaperDetailsModal({
                   title={t('details.previewTitle', {
                     subject: localizedPaperSubject(query.data, language),
                   })}
-                  className="h-full w-full bg-white"
+                  className="absolute inset-0 h-full w-full border-0 bg-white"
                 />
               ) : null}
             </div>

@@ -58,15 +58,15 @@ function UploadFilePreview({ file }: { file: File | null }) {
   }, [file, pdf])
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+    <div className="relative h-[58vh] min-h-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100 lg:h-full">
       {pdf && previewUrl ? (
         <iframe
           src={previewUrl}
           title={t('upload.filePreview', { name: file!.name })}
-          className="h-[58vh] min-h-[420px] w-full bg-white"
+          className="absolute inset-0 h-full w-full border-0 bg-white"
         />
       ) : (
-        <div className="grid h-[58vh] min-h-[420px] place-items-center p-6 text-center">
+        <div className="absolute inset-0 grid place-items-center p-6 text-center">
           {file ? (
             <div>
               <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-indigo-50 text-indigo-700">
@@ -333,6 +333,7 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
   }
 
   const result = mutation.data
+  const widePreview = !result || result.status === 'Approved'
   const uploaded = useQuery({
     queryKey: paperKeys.detail(result?.id ?? 0),
     queryFn: () => getPaper(result!.id),
@@ -350,17 +351,18 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
       title={result ? t('upload.uploadedTitle') : t('upload.title')}
       description={result ? t('upload.received') : undefined}
       onClose={close}
-      width={result?.status === 'Approved' ? 'max-w-[92rem]' : result ? 'max-w-2xl' : 'max-w-[92rem]'}
+      scrollable={!widePreview}
+      width={widePreview ? 'max-w-[92rem]' : 'max-w-2xl'}
     >
       {result ? (
         <div className={result.status === 'Approved'
-          ? 'grid items-start gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)] sm:p-6'
+          ? 'grid min-h-0 flex-1 items-stretch gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)] lg:grid-rows-[minmax(0,1fr)] sm:p-6'
           : 'space-y-5 p-6'}
         >
           {result.status === 'Approved' && (
             <UploadFilePreview file={form.files[selectedIndex] ?? form.files[0] ?? null} />
           )}
-          <div className={result.status === 'Approved' ? 'space-y-4 lg:max-h-[70vh] lg:overflow-y-auto lg:pr-1' : 'space-y-5'}>
+          <div className={result.status === 'Approved' ? 'min-h-0 space-y-4 overflow-y-auto lg:h-full lg:pr-1' : 'space-y-5'}>
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
             <p className="font-bold text-emerald-800">
               {t('upload.result', {
@@ -398,10 +400,10 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
           </div>
         </div>
       ) : (
-        <form onSubmit={submit}>
-          <div className="grid items-start gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)] sm:p-6">
+        <form className="flex min-h-0 flex-1 flex-col" onSubmit={submit}>
+          <div className="grid min-h-0 flex-1 items-stretch gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)] lg:grid-rows-[minmax(0,1fr)] sm:p-6">
             <UploadFilePreview file={form.files[selectedIndex] ?? null} />
-            <aside className="space-y-4 lg:max-h-[70vh] lg:overflow-y-auto lg:pr-1">
+            <aside className="min-h-0 space-y-4 overflow-y-auto lg:h-full lg:pr-1">
               <div className="grid gap-4 sm:grid-cols-2">
             <Field label={t('papers.studyProgram')} error={errors.studyId} required>
               <Select
@@ -547,7 +549,7 @@ export function UploadPaperModal({ open, onClose }: { open: boolean; onClose: ()
               </div>
             </aside>
           </div>
-          <div className="flex justify-end gap-3 border-t border-slate-200 px-5 py-4 sm:px-6">
+          <div className="flex shrink-0 justify-end gap-3 border-t border-slate-200 px-5 py-4 sm:px-6">
             <Button variant="secondary" onClick={close}>
               {t('common.cancel')}
             </Button>
